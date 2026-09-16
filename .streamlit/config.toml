@@ -1,0 +1,23 @@
+# Streamlit theme for the cream dashboard.
+#
+# THIS FILE IS THE FIX FOR INVISIBLE TEXT. Without it Streamlit picks its base
+# theme from the viewer's browser/OS appearance setting. On a machine in dark
+# mode that meant every BUILT-IN component - expander headers, dataframes,
+# dropdown menus, slider tracks, tooltips - kept a near-black background, while
+# the dashboard's own CSS painted text dark charcoal on top. Dark text on a dark
+# component is invisible, which is exactly the "black box with no text" symptom.
+#
+# Pinning base="light" and supplying the cream palette makes the built-in
+# components match the page instead of fighting it, for every viewer regardless
+# of their OS setting.
+
+[theme]
+base = "light"
+backgroundColor = "#faf6ee"           # page background (cream)
+secondaryBackgroundColor = "#f3ece0"  # expander headers, dataframes, inputs, sidebar
+textColor = "#2b2620"                 # body text (charcoal), 13.91:1 on cream
+primaryColor = "#9a3f1b"              # interactive accents (terracotta), 6.28:1 on cream
+font = "sans serif"
+
+[server]
+headless = true

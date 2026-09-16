@@ -1,0 +1,22 @@
+# Python
+__pycache__/
+*.py[cod]
+*.egg-info/
+.venv/
+venv/
+.ipynb_checkpoints/
+
+# Claude Code local settings (machine-specific permissions, not shared)
+.claude/settings.local.json
+
+# macOS
+.DS_Store
+
+# Streamlit secrets (never commit credentials)
+.streamlit/secrets.toml
+
+# Note: data/*.parquet IS committed on purpose. The files total ~300 KB and are
+# regenerated deterministically from a fixed random seed, but keeping them means
+# `streamlit run dashboard.py` works immediately on a fresh clone.
+# Note: .streamlit/config.toml IS committed - it pins the light theme the
+# dashboard depends on.
