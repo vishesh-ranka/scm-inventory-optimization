@@ -361,7 +361,7 @@ st.markdown(
     "factory, three regional warehouses (North America, Europe, Asia-Pacific), and "
     "ten stores. Every number on this page comes from a simulation that was given "
     "only past data to plan with, then tested against a later period it had never "
-    "seen — the same way a real policy would have to work.</p>",
+    "seen - the same way a real policy would have to work.</p>",
     unsafe_allow_html=True,
 )
 
@@ -373,13 +373,13 @@ st.markdown(
 # green and read as improvements.
 c1, c2, c3, c4 = st.columns(4)
 c1.metric(
-    "Warehouse Reliability — New Method",
+    "Warehouse Reliability - New Method",
     "100%",
     "held in all 4 test periods",
     delta_color="off",
 )
 c2.metric(
-    "Warehouse Reliability — Textbook Method",
+    "Warehouse Reliability - Textbook Method",
     f"{wide_dc['naive'].min():.1%}",
     f"{wide_dc['naive'].min() - 1:.1%} at its worst",
 )
@@ -407,36 +407,36 @@ st.markdown(
     unsafe_allow_html=True,
 )
 
-with st.expander("Glossary — Plain-Language Definitions", expanded=True):
+with st.expander("Glossary - Plain-Language Definitions", expanded=True):
     g1, g2 = st.columns(2)
     with g1:
         st.markdown(
             """
-**Regional warehouse (also called a "DC", short for distribution centre)** — a
+**Regional warehouse (also called a "DC", short for distribution centre)** - a
 large building that receives big shipments from the factory and sends smaller
 deliveries out to nearby stores. This network has three, one per region.
 
-**Echelon** — one level in the chain. Here there are two levels that hold
+**Echelon** - one level in the chain. Here there are two levels that hold
 stock: the warehouses, and the stores they supply. "Multi-echelon" just means
 planning both levels together instead of separately.
 
-**Lead time** — how long you wait for a delivery after ordering it. Factory to
+**Lead time** - how long you wait for a delivery after ordering it. Factory to
 warehouse is 30–45 days (a ship crossing an ocean, plus customs). Warehouse to
 store is 2–5 days (a truck).
 
-**Safety stock (backup stock)** — extra inventory kept on hand beyond what you
+**Safety stock (backup stock)** - extra inventory kept on hand beyond what you
 normally expect to sell, so that an unusually busy week doesn't empty the
 shelves. Deciding how much to keep, and where, is the whole problem.
 
-**Holding cost** — what it costs to keep one unit sitting on a shelf for a day:
+**Holding cost** - what it costs to keep one unit sitting on a shelf for a day:
 warehouse space, money tied up, insurance, spoilage risk. Warehouse space is
 roughly 2.4× cheaper per unit than store space, which is why *where* you keep
 backup stock matters financially.
 
-**Service level** — the share of customer demand you manage to supply. The
+**Service level** - the share of customer demand you manage to supply. The
 target throughout this project is 95%.
 
-**Fill rate (% of demand met on time)** — of everything customers actually
+**Fill rate (% of demand met on time)** - of everything customers actually
 asked for, the share they actually got. This is the main scoreboard.
             """
         )
@@ -444,34 +444,34 @@ asked for, the share they actually got. This is the main scoreboard.
         st.markdown(
             """
 **Warehouse order fill rate (% of store restock orders the warehouse could
-fill)** — when stores ask their regional warehouse to resupply them, this is
+fill)** - when stores ask their regional warehouse to resupply them, this is
 the share of that request the warehouse could actually ship. When it drops,
 stores are stranded: they cannot restock no matter how well their own shelves
 were planned.
 
-**Variability (standard deviation)** — how much demand bounces around from day
+**Variability (standard deviation)** - how much demand bounces around from day
 to day. A store selling 100 units every single day and a store averaging 100
 but swinging between 20 and 300 need very different amounts of backup stock.
 
-**Pooling** — keeping one shared pile of backup stock centrally instead of
+**Pooling** - keeping one shared pile of backup stock centrally instead of
 many small piles locally. It works because stores rarely have their busiest
 week at the same time, so a shared pile can be sent wherever the shortage
 actually happens. Ten separate piles cannot be moved once placed.
 
-**Out-of-sample validation** — testing a plan on data it has never seen. If you
+**Out-of-sample validation** - testing a plan on data it has never seen. If you
 check a plan against the same history you used to build it, it will always look
 good; that proves nothing. Every result here is out-of-sample.
 
-**Rolling-window backtest** — repeating that honest test several times. Build
+**Rolling-window backtest** - repeating that honest test several times. Build
 the plan using everything up to a date, test it on the next three months, then
 move the date forward and repeat. Four such tests were run here, so we can see
 whether a finding is consistent or just luck from one period.
 
-**Correlation** — a single number from −1 to +1 summarising whether two things
+**Correlation** - a single number from −1 to +1 summarising whether two things
 move together. Near +1 they rise together; near −1 one rises as the other
 falls; near 0 there is no relationship.
 
-**Expedite window (emergency delivery speed)** — how fast a warehouse can rush
+**Expedite window (emergency delivery speed)** - how fast a warehouse can rush
 an emergency delivery to a nearby store when it is about to run out. The
 faster this is, the less backup stock each store needs to hold itself.
             """
@@ -485,7 +485,7 @@ st.markdown(
     comes first because it was consistent in all four test periods. The money saved
     comes second and is shown as a range, because it was always positive but its size
     changed a lot depending on how busy the period was. Dollar costs appear last and
-    only one period at a time — comparing them across periods is genuinely misleading,
+    only one period at a time - comparing them across periods is genuinely misleading,
     for a reason explained in that section.
     </div>
     """,
@@ -501,7 +501,7 @@ chart_note(
     "<strong>What this shows:</strong> for each three-month test period, how much of "
     "what stores asked their regional warehouse for was actually shipped. "
     "<strong>What to look for:</strong> the green dots stay pinned at 100% every "
-    "time, while the orange dots slip — and slip furthest in Q4, the busiest quarter."
+    "time, while the orange dots slip - and slip furthest in Q4, the busiest quarter."
 )
 
 dc_fig = go.Figure()
@@ -560,8 +560,8 @@ st.markdown(
     <p class='caption'>
     The new method keeps every regional warehouse able to fill <strong>100%</strong>
     of store restock orders in all four test periods. The textbook method looks
-    perfectly healthy when trade is calm — it also hits 100% in Q2 2024, the one
-    quarter where demand came in <em>below</em> what it had planned for — but falls to
+    perfectly healthy when trade is calm - it also hits 100% in Q2 2024, the one
+    quarter where demand came in <em>below</em> what it had planned for - but falls to
     <strong>{wide_dc['naive'].min():.1%}</strong> in Q4 2024, the Christmas peak.
     That is the whole point: it fails exactly when it is needed most, and looks fine
     the rest of the year.
@@ -573,7 +573,7 @@ st.markdown(
 why_it_matters(
     """
 When a regional warehouse runs empty, the damage is not limited to one shop. Every
-store that depends on that warehouse is stranded at once — they place their restock
+store that depends on that warehouse is stranded at once - they place their restock
 orders as normal and simply do not receive the goods, however well their own shelves
 were planned. A single warehouse shortage in this network therefore turns into
 simultaneous empty shelves across three or four stores, during the busiest trading
@@ -610,7 +610,7 @@ chart_note(
     "Left-to-right is how much busier (or quieter) that period turned out to be than "
     "the history the plan was built from. Up-and-down is how well the textbook "
     "method's warehouses coped. <strong>What to look for:</strong> the dots fall as "
-    "you move right — the busier it got, the worse the warehouses performed."
+    "you move right - the busier it got, the worse the warehouses performed."
 )
 
 scatter_src = summary[summary.policy == "naive"].copy()
@@ -693,7 +693,7 @@ st.markdown(
     f"""
     <p class='caption'>
     The statistical summary of that pattern is a correlation of
-    <strong>{corr:+.2f}</strong> — which in plain terms means:
+    <strong>{corr:+.2f}</strong> - which in plain terms means:
     <strong>as demand rises above what the plan plans for, the textbook method's
     warehouse reliability drops, consistently and steeply.</strong> A correlation of
     −1.00 would be a perfect straight-line relationship, so −0.90 is a strong one.
@@ -718,7 +718,7 @@ st.markdown(
 why_it_matters(
     """
 This is a warning about how inventory plans are usually reviewed. The textbook formula
-is not broken in an obvious way — it is the standard approach taught everywhere, and it
+is not broken in an obvious way - it is the standard approach taught everywhere, and it
 performs perfectly well for most of the year. Its weakness only appears under demand
 pressure, which is the one condition where being wrong is expensive.
 
@@ -737,8 +737,8 @@ st.header("Money Saved: A Range, Not A Single Number")
 chart_note(
     "<strong>What this shows:</strong> how much cheaper the shared-warehouse method "
     "was than giving every store its own independent backup stock, in each test "
-    "period. <strong>What to look for:</strong> every bar is above zero — it saved "
-    "money every time — but the bars are very different heights, so the size of the "
+    "period. <strong>What to look for:</strong> every bar is above zero - it saved "
+    "money every time - but the bars are very different heights, so the size of the "
     "saving is not something you can promise in advance."
 )
 
@@ -758,7 +758,7 @@ saving_fig.add_trace(
         hovertemplate=(
             "<b>%{x}</b><br>"
             "Sharing backup stock centrally cost %{y:.1f}% less<br>"
-            "than giving every store its own — about $%{customdata[0]:,.0f} a year"
+            "than giving every store its own - about $%{customdata[0]:,.0f} a year"
             "<extra></extra>"
         ),
         showlegend=False,
@@ -786,7 +786,7 @@ st.markdown(
     ranged from <strong>{saving_pct.min():.1%}</strong> to
     <strong>{saving_pct.max():.1%}</strong>, averaging
     <strong>{saving_pct.mean():.1%}</strong>. An earlier version of this analysis, based
-    on a single test period, reported 2.7% — which turned out to be one draw from a
+    on a single test period, reported 2.7% - which turned out to be one draw from a
     wide spread rather than a dependable figure. Quote the range, not a single number.
     The saving is biggest in the busiest periods, because that is when being able to
     send stock wherever the shortage actually is beats having it pre-committed to ten
@@ -820,7 +820,7 @@ st.markdown(
     "<p class='caption'>The shared-warehouse method assumes a regional warehouse can "
     "rush an emergency delivery to a nearby store quickly. The faster that is, the "
     "less backup stock each store has to hold itself. This was the single softest "
-    "assumption in the whole model — so it was tested directly. Move the selector to "
+    "assumption in the whole model - so it was tested directly. Move the selector to "
     "see what the simulation actually produced at each speed.</p>",
     unsafe_allow_html=True,
 )
@@ -869,7 +869,7 @@ e3.metric(
 chart_note(
     "<strong>What this shows:</strong> the simulated result at all four emergency "
     "delivery speeds, with your current choice highlighted. <strong>What to look "
-    "for:</strong> the bars are almost the same height — this assumption barely "
+    "for:</strong> the bars are almost the same height - this assumption barely "
     "changes the outcome."
 )
 
@@ -922,11 +922,11 @@ spread_cost = (expedite.cost.max() - expedite.cost.min()) / expedite.cost.min()
 st.markdown(
     f"""
     <div class='note'>
-    <strong>This barely matters — and that is the interesting part.</strong> Across the
+    <strong>This barely matters - and that is the interesting part.</strong> Across the
     whole range from same-day to three-day emergency delivery, the share of demand met
     on time moves by only <strong>{spread_fill:.2f} percentage points</strong> and the
     cost of stock held by <strong>{spread_cost:.1%}</strong>. An earlier, purely
-    theoretical version of this calculation suggested the assumption was critical —
+    theoretical version of this calculation suggested the assumption was critical -
     it implied the benefit of sharing stock would collapse from 22.8% to 2.2% across
     this same range. Running the actual simulation showed that was an artefact of the
     theory, not a real effect. In practice the outcome is governed by how much stock
@@ -954,19 +954,19 @@ line of objection from anyone reviewing the proposal.
 
 # --- absolute cost, one period at a time ---------------------------------
 
-st.header("Cost In Dollars — One Period At A Time")
+st.header("Cost In Dollars - One Period At A Time")
 
 st.markdown(
     f"""
     <div class='callout'>
     <strong>⚠ Please read this before reading the chart.</strong> The cost figure here
     is the value of stock actually sitting on shelves. That means <em>a lower number
-    can signal a failing policy rather than an efficient one</em> — when demand
+    can signal a failing policy rather than an efficient one</em> - when demand
     outstrips supply the shelves empty, and empty shelves are cheap to hold.
     <br><br>
     This data contains a clear example. In <strong>Q4 2024 the textbook method
     produced the lowest cost figure in the entire study,
-    ${wide_cost.loc['W4', 'naive']:,.0f} a year — while meeting only
+    ${wide_cost.loc['W4', 'naive']:,.0f} a year - while meeting only
     {summary[(summary.window == 'W4') & (summary.policy == 'naive')].store_fill.iloc[0]:.1%}
     of customer demand</strong> and leaving its warehouses able to fill just
     {wide_dc.loc['W4', 'naive']:.1%} of store restock orders. That is not a cheap
@@ -974,7 +974,7 @@ st.markdown(
     <br><br>
     For the same reason this chart shows <strong>one period at a time</strong>. The
     identical shared-warehouse method costs ${wide_cost['optimized'].max():,.0f} a year
-    in the quietest period and ${wide_cost['optimized'].min():,.0f} in the busiest — a
+    in the quietest period and ${wide_cost['optimized'].min():,.0f} in the busiest - a
     threefold difference that reflects how busy trade was, not how good the policy is.
     Comparing dollar figures between periods tells you nothing useful, so the page
     does not let you do it.
@@ -996,7 +996,7 @@ chart_note(
     "<strong>What this shows:</strong> the yearly cost of stock held under each of "
     "the three methods, within the single period you selected. The share of customer "
     "demand each one met is printed on its bar. <strong>What to look for:</strong> "
-    "read the cost and the demand-met figure together — never the cost on its own."
+    "read the cost and the demand-met figure together - never the cost on its own."
 )
 
 block = summary[summary.window == window_choice].set_index("policy")
@@ -1024,7 +1024,7 @@ for policy in ["naive", "decentralized_95", "optimized"]:
     )
 cost_fig.update_layout(
     title=(
-        f"Yearly Cost Of Stock Held — {quarters[window_choice]} "
+        f"Yearly Cost Of Stock Held - {quarters[window_choice]} "
         f"(share of demand met shown on each bar)"
     ),
     yaxis_title="Cost of stock held ($/year)",
@@ -1054,7 +1054,7 @@ chart_note(
     "<strong>What this shows:</strong> of everything customers asked for across all "
     "ten stores, how much they actually got, under each method. The dotted line is "
     "the 95% target. <strong>What to look for:</strong> the two methods are close for "
-    "most of the year, then separate in Q4 — the textbook method drops well below "
+    "most of the year, then separate in Q4 - the textbook method drops well below "
     "target while the new method stays near it."
 )
 
@@ -1095,7 +1095,7 @@ svc_fig.update_yaxes(range=[0, 105], ticksuffix="%")
 st.plotly_chart(style_fig(svc_fig, 420), width="stretch", theme=None)
 
 st.markdown(
-    "<p class='caption'>These bars start at zero, so the differences look modest — and "
+    "<p class='caption'>These bars start at zero, so the differences look modest - and "
     "they genuinely are modest in ordinary quarters. The gap opens up in Q4. The "
     "larger operational difference between the two methods is in the warehouses, shown "
     "at the top of this page.</p>",
@@ -1124,7 +1124,7 @@ st.header("All The Numbers")
 chart_note(
     "<strong>What this shows:</strong> every figure behind the charts above, one row "
     "per method per test period. <strong>What to look for:</strong> the "
-    "‘Demand vs Plan’ column explains most of the variation — the higher it is, the "
+    "‘Demand vs Plan’ column explains most of the variation - the higher it is, the "
     "worse every method performs."
 )
 
@@ -1166,7 +1166,7 @@ st.dataframe(
             "Yearly Cost Of Stock Held": "${:,.0f}",
             "Saved vs Every Store On Its Own": "{:.2%}",
         },
-        na_rep="—",
+        na_rep="-",
     ),
     width="stretch",
     hide_index=True,
@@ -1219,19 +1219,19 @@ with st.expander("Method And Known Limitations"):
         """
 **The test.** Four separate tests were run. Each one builds the stocking plan using
 only the history up to a cut-off date, then simulates the following three months day
-by day — stores selling, ordering from their warehouse, warehouses ordering from the
+by day - stores selling, ordering from their warehouse, warehouses ordering from the
 factory, deliveries arriving after realistic delays. Demand the shops could not
 supply is treated as a lost sale, not a delayed one, which is how retail actually
 works. The simulation runs for two months before measurement starts, so it is not
 being judged on its opening conditions.
 
 **Why the standard formula was replaced.** The textbook approach understates how much
-demand really swings over a 30–45 day sea crossing — by between 2.8× and 10.6× at the
-warehouses — because it assumes each day is unrelated to the one before. Every backup
+demand really swings over a 30–45 day sea crossing - by between 2.8× and 10.6× at the
+warehouses - because it assumes each day is unrelated to the one before. Every backup
 stock figure here is instead taken from what demand actually did over windows of that
 same length in the real history.
 
-**Where the saving comes from.** The stores do not all get busy at the same time —
+**Where the saving comes from.** The stores do not all get busy at the same time -
 Sydney peaks mid-year while Tokyo and Jakarta peak in December. That means one shared
 pile of backup stock at the warehouse only needs 65–75% of what ten separate piles
 would. This was measured by adding up genuine simultaneous shortfalls in the history,
@@ -1239,14 +1239,14 @@ not assumed.
 
 **What this cannot tell you.**
 
-- The demand history is synthetic — generated data, not a real retailer's sales. The
+- The demand history is synthetic - generated data, not a real retailer's sales. The
   structure of the findings is sound, but the specific dollar figures describe this
   simulated network only.
 - Only four test periods, drawn from two years of history. The ranges shown indicate
   spread; they are not statistical confidence intervals.
 - The planner chooses one stocking level per region rather than per individual store,
   a simplification made so the shared buffer could be calculated.
-- Emergency delivery speed is assumed rather than measured — though as the interactive
+- Emergency delivery speed is assumed rather than measured - though as the interactive
   section above shows, the results barely move across the plausible range.
 - Every result assumes the factory itself never runs short.
         """
