@@ -1,0 +1,775 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Multi-Echelon Inventory Optimization</title>
+<meta name="description" content="Where should a retailer keep its backup stock?
+Validated with rolling-window backtests on a simulated 13-location network.">
+<script src="https://cdn.plot.ly/plotly-2.35.2.min.js" charset="utf-8"></script>
+<style>
+  :root {
+    --cream:#faf6ee;
+    --card:#f3ece0;
+    --plot:#fffdf7;
+    --ink:#2b2620;
+    --muted:#6b6155;
+    --terra:#9a3f1b;
+    --grid:#e3dccd;
+    --teal:#2c9a88;
+    --blue:#2961ce;
+    --rust:#ab4400;
+  }
+  * { box-sizing: border-box; }
+  html { -webkit-text-size-adjust: 100%; }
+  body {
+    margin: 0; background: var(--cream); color: var(--ink);
+    font: 16px/1.6 -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto,
+          Helvetica, Arial, sans-serif;
+    padding-block: 32px;
+  }
+  .wrap { max-width: 1120px; margin: 0 auto; padding-inline: 20px; }
+  h1 { color: var(--terra); font-size: 2rem; margin: 0 0 .4rem; line-height: 1.2; }
+  h2 {
+    color: var(--terra); font-size: 1.3rem; margin: 2.6rem 0 .6rem;
+    border-bottom: 2px solid var(--grid); padding-bottom: .4rem;
+  }
+  p { margin: .7rem 0; }
+  .lede { color: var(--muted); font-size: 1rem; max-width: 80ch; }
+  .caption { color: var(--muted); font-size: .92rem; max-width: 85ch; }
+  .chartnote {
+    background: var(--card); border-radius: 6px; padding: 11px 15px;
+    margin: 10px 0 14px; font-size: .94rem;
+  }
+  .note {
+    background: var(--card); border-left: 4px solid var(--teal);
+    padding: 14px 18px; border-radius: 4px; margin: 14px 0 18px; font-size: .94rem;
+  }
+  .callout {
+    background: rgba(171,68,0,.08); border-left: 4px solid var(--rust);
+    padding: 14px 18px; border-radius: 4px; margin: 14px 0 18px; font-size: .94rem;
+  }
+  .metrics {
+    display: grid; grid-template-columns: repeat(auto-fit, minmax(210px, 1fr));
+    gap: 14px; margin: 22px 0;
+  }
+  .metric {
+    background: var(--card); border: 1px solid var(--grid);
+    border-radius: 8px; padding: 14px 16px;
+  }
+  .metric .label {
+    color: var(--muted); font-size: .8rem; text-transform: uppercase;
+    letter-spacing: .04em;
+  }
+  .metric .value { font-size: 1.65rem; font-weight: 600; margin-top: 4px; }
+  .metric .sub { color: var(--muted); font-size: .82rem; margin-top: 2px; }
+  .metric .sub.bad { color: var(--rust); font-weight: 600; }
+  .chart {
+    background: var(--plot); border: 1px solid var(--grid);
+    border-radius: 8px; padding: 8px; margin: 6px 0 4px;
+  }
+  .controls {
+    display: flex; flex-wrap: wrap; gap: 18px; align-items: center;
+    background: var(--card); border: 1px solid var(--grid);
+    border-radius: 8px; padding: 12px 16px; margin: 14px 0;
+  }
+  .controls label { font-size: .9rem; font-weight: 600; }
+  select, input[type=range] {
+    font: inherit; font-size: .92rem; color: var(--ink); background: var(--plot);
+    border: 1px solid var(--grid); border-radius: 5px; padding: 6px 9px;
+  }
+  input[type=range] { padding: 0; accent-color: var(--terra); min-width: 190px; }
+  .seg { display: inline-flex; border: 1px solid var(--grid); border-radius: 5px;
+         overflow: hidden; }
+  .seg button {
+    font: inherit; font-size: .9rem; border: 0; background: var(--plot);
+    color: var(--ink); padding: 7px 14px; cursor: pointer;
+  }
+  .seg button[aria-pressed="true"] { background: var(--terra); color: #fff; }
+  details {
+    background: var(--card); border: 1px solid var(--grid);
+    border-radius: 6px; padding: 10px 16px; margin: 12px 0;
+  }
+  details > summary {
+    cursor: pointer; color: var(--terra); font-weight: 600; font-size: .95rem;
+  }
+  details[open] > summary { margin-bottom: .6rem; }
+  .glossary { margin: 0; display: grid;
+               grid-template-columns: repeat(auto-fit, minmax(330px, 1fr)); gap: 4px 30px; }
+  .gterm { padding: 7px 0; border-bottom: 1px solid var(--grid); }
+  .glossary dt { font-weight: 700; color: var(--ink); }
+  .glossary dd { margin: 3px 0 0; color: var(--muted); font-size: .92rem; }
+  .tablewrap { overflow-x: auto; margin: 10px 0; border: 1px solid var(--grid);
+                border-radius: 6px; }
+  table { border-collapse: collapse; width: 100%; font-size: .88rem;
+           background: var(--plot); }
+  th, td { padding: 8px 11px; text-align: right; white-space: nowrap;
+            border-bottom: 1px solid var(--grid); }
+  th { background: var(--card); color: var(--ink); font-weight: 700;
+        text-align: right; position: sticky; top: 0; }
+  th:first-child, td:first-child, th:nth-child(2), td:nth-child(2),
+  th:nth-child(3), td:nth-child(3) { text-align: left; }
+  .foot { color: var(--muted); font-size: .85rem; margin-top: 2.5rem;
+           border-top: 1px solid var(--grid); padding-top: 1rem; }
+  code { background: var(--card); color: var(--terra); padding: 1px 5px;
+          border-radius: 3px; font-size: .9em; }
+  a { color: var(--terra); }
+  @media (max-width: 640px) {
+    h1 { font-size: 1.5rem; } body { font-size: 15px; }
+    .controls { flex-direction: column; align-items: flex-start; }
+  }
+</style>
+</head>
+<body>
+<div class="wrap">
+
+  <h1>Multi-Echelon Inventory Optimization</h1>
+  <p class="lede">
+    This project asks a simple question: <strong>where should a retailer keep its
+    backup stock?</strong> The network here has one overseas factory, three
+    regional warehouses (North America, Europe, Asia-Pacific), and ten stores.
+    Every number on this page comes from a simulation that was given only past
+    data to plan with, then tested against a later period it had never seen &mdash;
+    the same way a real policy would have to work.
+  </p>
+
+  <div class="metrics" id="topMetrics"></div>
+
+  <h2>Start Here: What The Words Mean</h2>
+  <p class="caption">Every technical term used anywhere on this page is defined
+  below. Nothing further down assumes you have read a supply-chain textbook.</p>
+  <details open>
+    <summary>Glossary &mdash; Plain-Language Definitions</summary>
+    <dl class='glossary'><div class='gterm'><dt>Regional warehouse (DC)</dt><dd>A building that receives big sea shipments from the factory and sends smaller deliveries to nearby stores. There are three, one per region.</dd></div><div class='gterm'><dt>Echelon</dt><dd>One level in the chain. Here there are two levels that hold stock: the warehouses, and the stores they supply. “Multi-echelon” means planning both levels together instead of separately.</dd></div><div class='gterm'><dt>Lead time</dt><dd>How long you wait for a delivery after ordering it. Factory to warehouse is 30–45 days (a ship crossing an ocean, plus customs). Warehouse to store is 2–5 days (a truck).</dd></div><div class='gterm'><dt>Safety stock (backup stock)</dt><dd>Extra inventory kept on hand beyond what you normally expect to sell, so that an unusually busy week doesn’t empty the shelves. Deciding how much to keep, and where, is the whole problem.</dd></div><div class='gterm'><dt>Holding cost</dt><dd>What it costs to keep one unit sitting on a shelf for a day: space, money tied up, insurance, spoilage risk. Warehouse space is roughly 2.4× cheaper per unit than store space, which is why <em>where</em> you keep backup stock matters financially.</dd></div><div class='gterm'><dt>Service level</dt><dd>The share of customer demand you manage to supply. The target throughout this project is 95%.</dd></div><div class='gterm'><dt>Fill rate (% of demand met on time)</dt><dd>Of everything customers actually asked for, the share they actually got. This is the main scoreboard.</dd></div><div class='gterm'><dt>Warehouse order fill rate</dt><dd>When stores ask their regional warehouse to resupply them, this is the share of that request the warehouse could actually ship. When it drops, stores are stranded: they cannot restock no matter how well their own shelves were planned.</dd></div><div class='gterm'><dt>Variability (standard deviation)</dt><dd>How much demand bounces around from day to day. A store selling 100 units every day and a store averaging 100 but swinging between 20 and 300 need very different amounts of backup stock.</dd></div><div class='gterm'><dt>Pooling</dt><dd>Keeping one shared pile of backup stock centrally instead of many small piles locally. It works because stores rarely have their busiest week at the same time, so a shared pile can be sent wherever the shortage actually happens. Ten separate piles cannot be moved once placed.</dd></div><div class='gterm'><dt>Out-of-sample validation</dt><dd>Testing a plan on data it has never seen. If you check a plan against the same history you used to build it, it will always look good; that proves nothing. Every result here is out-of-sample.</dd></div><div class='gterm'><dt>Rolling-window backtest</dt><dd>Repeating that honest test several times. Build the plan using everything up to a date, test it on the next three months, then move the date forward and repeat. Four such tests were run here, so we can see whether a finding is consistent or just luck from one period.</dd></div><div class='gterm'><dt>Correlation</dt><dd>A single number from −1 to +1 summarising whether two things move together. Near +1 they rise together; near −1 one rises as the other falls; near 0 there is no relationship.</dd></div><div class='gterm'><dt>Expedite window (emergency delivery speed)</dt><dd>How fast a warehouse can rush an emergency delivery to a nearby store when it is about to run out. The faster this is, the less backup stock each store needs to hold itself.</dd></div></dl>
+  </details>
+  <div class="note">
+    <strong>How this page is ordered.</strong> Findings appear in order of how
+    well they hold up under testing, not how impressive they sound. Warehouse
+    reliability comes first because it was consistent in all four test periods.
+    The money saved comes second and is shown as a range, because it was always
+    positive but its size changed a lot depending on how busy the period was.
+    Dollar costs appear last and only one period at a time &mdash; comparing them
+    across periods is genuinely misleading, for a reason explained in that section.
+  </div>
+
+  <h2>Main Finding: Keeping Regional Warehouses In Stock</h2>
+  <div class="chartnote">
+    <strong>What this shows:</strong> for each three-month test period, how much
+    of what stores asked their regional warehouse for was actually shipped.
+    <strong>What to look for:</strong> the green dots stay pinned at 100% every
+    time, while the orange dots slip &mdash; and slip furthest in Q4, the busiest
+    quarter.
+  </div>
+  <div class="chart"><div id="chartDC"></div></div>
+  <p class="caption" id="dcCaption"></p>
+  <details><summary>Why does this matter?</summary>
+    <p>When a regional warehouse runs empty, the damage is not limited to one
+    shop. Every store that depends on that warehouse is stranded at once &mdash;
+    they place their restock orders as normal and simply do not receive the
+    goods, however well their own shelves were planned. A single warehouse
+    shortage in this network therefore turns into simultaneous empty shelves
+    across three or four stores, during the busiest trading weeks of the year,
+    which is precisely when lost sales are most expensive and most visible to
+    customers.</p>
+    <p>This is also the failure that is hardest to see coming. The textbook
+    method reports healthy numbers for three quarters out of four. Anyone
+    reviewing it in a calm period would reasonably conclude it was working
+    fine.</p>
+  </details>
+
+  <h2>Why The Textbook Method Breaks Down Under Pressure</h2>
+  <div class="controls">
+    <label>Chart view</label>
+    <span class="seg" id="viewToggle">
+      <button data-view="explained" aria-pressed="true">Show Explained</button>
+      <button data-view="raw" aria-pressed="false">Show Raw Data</button>
+    </span>
+    <span class="caption" style="margin:0">
+      &ldquo;Explained&rdquo; writes the interpretation onto the chart.
+    </span>
+  </div>
+  <div class="chartnote">
+    <strong>What this shows:</strong> each dot is one three-month test period.
+    Left-to-right is how much busier (or quieter) that period turned out to be
+    than the history the plan was built from. Up-and-down is how well the
+    textbook method&rsquo;s warehouses coped.
+    <strong>What to look for:</strong> the dots fall as you move right &mdash; the
+    busier it got, the worse the warehouses performed.
+  </div>
+  <div class="chart"><div id="chartScatter"></div></div>
+  <p class="caption" id="corrCaption"></p>
+  <p class="caption">
+    <strong>Why it happens.</strong> The textbook method sizes each
+    warehouse&rsquo;s backup stock with a standard formula that assumes each
+    day&rsquo;s demand is unrelated to the last. Real demand is not like that: it
+    has a weekly rhythm, a Christmas season, and a growth trend, so busy days
+    arrive in clusters. Across a 30&ndash;45 day sea crossing those clusters pile
+    up, and the true swing in demand turns out to be between
+    <strong>2.8&times; and 10.6&times;</strong> larger than the formula assumes.
+    The formula therefore buys a backup stock sized for a calm world. The new
+    method sizes the same backup stock from what demand actually did over that
+    same 30&ndash;45 day window, so the clustering is already accounted for.
+  </p>
+  <details><summary>Why does this matter?</summary>
+    <p>This is a warning about how inventory plans are usually reviewed. The
+    textbook formula is not broken in an obvious way &mdash; it is the standard
+    approach taught everywhere, and it performs perfectly well for most of the
+    year. Its weakness only appears under demand pressure, which is the one
+    condition where being wrong is expensive.</p>
+    <p>The practical implication is that a policy should never be judged on an
+    average or a quiet period. It should be judged on its worst quarter, because
+    that is where the lost sales, the emergency freight bills, and the
+    disappointed customers actually occur. Any review process that looks at
+    annual averages will systematically miss this.</p>
+  </details>
+
+  <h2>Money Saved: A Range, Not A Single Number</h2>
+  <div class="chartnote">
+    <strong>What this shows:</strong> how much cheaper the shared-warehouse
+    method was than giving every store its own independent backup stock, in each
+    test period. <strong>What to look for:</strong> every bar is above zero
+    &mdash; it saved money every time &mdash; but the bars are very different
+    heights, so the size of the saving is not something you can promise in
+    advance.
+  </div>
+  <div class="chart"><div id="chartSaving"></div></div>
+  <p class="caption" id="savingCaption"></p>
+  <details><summary>Why does this matter?</summary>
+    <p>A business case built on &ldquo;this saves 2.7%&rdquo; would be on shaky
+    ground: in a quiet quarter the real figure is nearer 1.5%, and anyone
+    checking the books three months later would find the promised saving missing.
+    A business case built on &ldquo;this saves between 1.5% and 8.3%, averaging
+    under 4%, and it holds our warehouses at full reliability even at
+    Christmas&rdquo; is both more honest and more persuasive, because the
+    reliability part is the finding that actually replicated every time.</p>
+    <p>It is also worth being clear that this is a modest saving on its own. The
+    reason to adopt the approach is that shelves stay stocked in peak season; the
+    cost reduction is a bonus, not the headline.</p>
+  </details>
+
+  <h2>Try It Yourself: How Fast Must Emergency Deliveries Be?</h2>
+  <p class="caption">
+    The shared-warehouse method assumes a regional warehouse can rush an
+    emergency delivery to a nearby store quickly. The faster that is, the less
+    backup stock each store has to hold itself. This was the single softest
+    assumption in the whole model &mdash; so it was tested directly. Move the
+    slider to see what the simulation actually produced at each speed.
+  </p>
+  <div class="controls">
+    <label for="expSlider">Emergency delivery takes</label>
+    <input type="range" id="expSlider" min="0" max="3" step="1" value="1">
+    <strong id="expLabel" style="min-width:8ch"></strong>
+  </div>
+  <div class="metrics" id="expMetrics"></div>
+  <div class="chartnote">
+    <strong>What this shows:</strong> the simulated result at all four emergency
+    delivery speeds, with your current choice highlighted.
+    <strong>What to look for:</strong> the bars are almost the same height &mdash;
+    this assumption barely changes the outcome.
+  </div>
+  <div class="chart"><div id="chartExp"></div></div>
+  <div class="note" id="expNote"></div>
+  <details><summary>Why does this matter?</summary>
+    <p>Models usually rest on a handful of assumptions nobody can verify, and the
+    honest question is always &ldquo;how much would it matter if this were
+    wrong?&rdquo; Here that question has an answer, and the answer is reassuring:
+    even if the assumed emergency delivery speed is off by a factor of three, the
+    recommendation does not change.</p>
+    <p>That is worth knowing before committing money to a change. It means the
+    case does not depend on negotiating a fast internal courier arrangement, and
+    it removes an obvious line of objection from anyone reviewing the proposal.</p>
+  </details>
+
+  <h2>Cost In Dollars &mdash; One Period At A Time</h2>
+  <div class="callout" id="costWarning"></div>
+  <div class="controls">
+    <label for="qSelect">Test period</label>
+    <select id="qSelect"></select>
+  </div>
+  <div class="chartnote">
+    <strong>What this shows:</strong> the yearly cost of stock held under each of
+    the three methods, within the single period you selected. The share of
+    customer demand each one met is printed on its bar.
+    <strong>What to look for:</strong> read the cost and the demand-met figure
+    together &mdash; never the cost on its own.
+  </div>
+  <div class="chart"><div id="chartCost"></div></div>
+  <details><summary>Why does this matter?</summary>
+    <p>This is the most common way an inventory review goes wrong. Cost is easy
+    to measure and lands straight on a financial report; stockouts are diffuse,
+    show up as lost sales nobody logged, and rarely get attributed back to an
+    inventory decision. So the policy that quietly runs out of stock can look
+    like the responsible, frugal choice on paper.</p>
+    <p>Putting the service figure directly on the cost bar is a deliberate guard
+    against that. Any time someone presents an inventory saving, the first
+    question should be what happened to availability over the same period.</p>
+  </details>
+
+  <h2>Share Of Customer Demand Met, By Period</h2>
+  <div class="chartnote">
+    <strong>What this shows:</strong> of everything customers asked for across
+    all ten stores, how much they actually got, under each method. The dotted
+    line is the 95% target. <strong>What to look for:</strong> the two methods
+    are close for most of the year, then separate in Q4.
+  </div>
+  <div class="chart"><div id="chartService"></div></div>
+  <p class="caption">These bars start at zero, so the differences look modest
+  &mdash; and they genuinely are modest in ordinary quarters. The gap opens up in
+  Q4. The larger operational difference between the two methods is in the
+  warehouses, shown at the top of this page.</p>
+
+  <h2>All The Numbers</h2>
+  <div class="chartnote">
+    <strong>What this shows:</strong> every figure behind the charts above, one
+    row per method per test period. <strong>What to look for:</strong> the
+    &ldquo;Demand vs Plan&rdquo; column explains most of the variation &mdash; the
+    higher it is, the worse every method performs.
+  </div>
+  <div class="tablewrap"><table id="mainTable"></table></div>
+  <details>
+    <summary>Store-By-Store And Warehouse-By-Warehouse Detail</summary>
+    <p class="caption">One row per location per method per test period.</p>
+    <div class="tablewrap"><table id="detailTable"></table></div>
+  </details>
+
+  <h2>How This Was Worked Out, And What It Cannot Tell You</h2>
+  <details>
+    <summary>Method And Known Limitations</summary>
+    <p><strong>The test.</strong> Four separate tests were run. Each one builds
+    the stocking plan using only the history up to a cut-off date, then simulates
+    the following three months day by day &mdash; stores selling, ordering from
+    their warehouse, warehouses ordering from the factory, deliveries arriving
+    after realistic delays. Demand the shops could not supply is treated as a
+    lost sale, not a delayed one, which is how retail actually works. The
+    simulation runs for two months before measurement starts, so it is not being
+    judged on its opening conditions.</p>
+    <p><strong>Why the standard formula was replaced.</strong> The textbook
+    approach understates how much demand really swings over a 30&ndash;45 day sea
+    crossing &mdash; by between 2.8&times; and 10.6&times; at the warehouses
+    &mdash; because it assumes each day is unrelated to the one before. Every
+    backup stock figure here is instead taken from what demand actually did over
+    windows of that same length in the real history.</p>
+    <p><strong>Where the saving comes from.</strong> The stores do not all get
+    busy at the same time &mdash; Sydney peaks mid-year while Tokyo and Jakarta
+    peak in December. That means one shared pile of backup stock at the warehouse
+    only needs 65&ndash;75% of what ten separate piles would. This was measured by
+    adding up genuine simultaneous shortfalls in the history, not assumed.</p>
+    <p><strong>What this cannot tell you.</strong></p>
+    <ul>
+      <li>The demand history is synthetic &mdash; generated data, not a real
+      retailer&rsquo;s sales. The structure of the findings is sound, but the
+      specific dollar figures describe this simulated network only.</li>
+      <li>Only four test periods, drawn from two years of history. The ranges
+      shown indicate spread; they are not statistical confidence intervals.</li>
+      <li>The planner chooses one stocking level per region rather than per
+      individual store, a simplification made so the shared buffer could be
+      calculated.</li>
+      <li>Emergency delivery speed is assumed rather than measured &mdash; though
+      as the interactive section above shows, the results barely move across the
+      plausible range.</li>
+      <li>Every result assumes the factory itself never runs short.</li>
+    </ul>
+  </details>
+
+  <p class="foot">
+    Source: rolling-window backtest of 4 test periods &times; 3 methods &times;
+    13 locations. Generated by <code>src/rolling_validation.py</code>, with the
+    emergency-delivery comparison from <code>src/validate_policy.py</code>.
+    This page is a static build of the Streamlit dashboard
+    (<code>dashboard.py</code>) &mdash; same data, no server required.
+    &nbsp;&middot;&nbsp;
+    <a href="https://github.com/vishesh-ranka/scm-inventory-optimization">Source
+    code on GitHub</a>
+  </p>
+</div>
+
+<script>
+const D = {"summary":[{"window":"W1","policy":"decentralized_95","quarter":"Q1 2024","dates":"Jan 1 \u2013 Mar 31, 2024","demand_ratio":1.025112240945664,"store_fill":0.9885893194683322,"worst_store":0.9338075571663673,"dc_fill":1.0,"cost":112469.37378437739},{"window":"W1","policy":"naive","quarter":"Q1 2024","dates":"Jan 1 \u2013 Mar 31, 2024","demand_ratio":1.025112240945664,"store_fill":0.9760079009244014,"worst_store":0.8907070338011966,"dc_fill":0.9878470138295898,"cost":56869.323380912814},{"window":"W1","policy":"optimized","quarter":"Q1 2024","dates":"Jan 1 \u2013 Mar 31, 2024","demand_ratio":1.025112240945664,"store_fill":0.9879067874275164,"worst_store":0.9376069565786995,"dc_fill":1.0,"cost":110812.12506872743},{"window":"W2","policy":"decentralized_95","quarter":"Q2 2024","dates":"Apr 1 \u2013 Jun 30, 2024","demand_ratio":0.8798869962351454,"store_fill":0.9932704926253187,"worst_store":0.9275215633210808,"dc_fill":1.0,"cost":198001.41342895332},{"window":"W2","policy":"naive","quarter":"Q2 2024","dates":"Apr 1 \u2013 Jun 30, 2024","demand_ratio":0.8798869962351454,"store_fill":0.9909544963912694,"worst_store":0.9044104735532634,"dc_fill":1.0,"cost":143726.46215031616},{"window":"W2","policy":"optimized","quarter":"Q2 2024","dates":"Apr 1 \u2013 Jun 30, 2024","demand_ratio":0.8798869962351454,"store_fill":0.9931504073992513,"worst_store":0.9339433059909896,"dc_fill":1.0,"cost":189959.42613815717},{"window":"W3","policy":"decentralized_95","quarter":"Q3 2024","dates":"Jul 1 \u2013 Sep 30, 2024","demand_ratio":1.0294278601079472,"store_fill":0.985280170508224,"worst_store":0.9291275337899493,"dc_fill":1.0,"cost":153473.79307089205},{"window":"W3","policy":"naive","quarter":"Q3 2024","dates":"Jul 1 \u2013 Sep 30, 2024","demand_ratio":1.0294278601079472,"store_fill":0.9705659148506798,"worst_store":0.9026948353213669,"dc_fill":0.9918246207642574,"cost":94252.99205255896},{"window":"W3","policy":"optimized","quarter":"Q3 2024","dates":"Jul 1 \u2013 Sep 30, 2024","demand_ratio":1.0294278601079472,"store_fill":0.9872368987454614,"worst_store":0.9561336878085833,"dc_fill":1.0,"cost":151082.41496216346},{"window":"W4","policy":"decentralized_95","quarter":"Q4 2024","dates":"Oct 1 \u2013 Dec 30, 2024","demand_ratio":1.2140868739899022,"store_fill":0.9339946884611412,"worst_store":0.8582645223251133,"dc_fill":1.0,"cost":65407.98944414975},{"window":"W4","policy":"naive","quarter":"Q4 2024","dates":"Oct 1 \u2013 Dec 30, 2024","demand_ratio":1.2140868739899022,"store_fill":0.8861557853161812,"worst_store":0.6819369498158023,"dc_fill":0.8771091922009797,"cost":25150.00767632274},{"window":"W4","policy":"optimized","quarter":"Q4 2024","dates":"Oct 1 \u2013 Dec 30, 2024","demand_ratio":1.2140868739899022,"store_fill":0.9565678190877562,"worst_store":0.9094483389210606,"dc_fill":1.0,"cost":59976.78977467597}],"expedite":[{"days":0,"store_fill":0.9698018774104847,"dc_fill":1.0,"cost":101303.28075526742,"expedited":60143.594149908546},{"days":1,"store_fill":0.9700596235005999,"dc_fill":1.0,"cost":104201.17656823229,"expedited":61800.51133455211},{"days":2,"store_fill":0.9674259838473153,"dc_fill":0.9986413631936091,"cost":105131.16175631282,"expedited":45765.84034032007},{"days":3,"store_fill":0.9660456686677402,"dc_fill":1.0,"cost":106815.97607881093,"expedited":30055.084220015837}],"detail":[{"window":"W1","policy":"Textbook Formula","node_name":"New York Flagship","node_type":"Store","region":"North America","fill_rate":0.9743609797366269,"day_service":0.8791208791208791,"mean_onhand":174.21206392936165,"actual_cost_annual":4769.055250066274},{"window":"W1","policy":"Textbook Formula","node_name":"Chicago Metro","node_type":"Store","region":"North America","fill_rate":0.9726333789016416,"day_service":0.8901098901098901,"mean_onhand":125.9267769276983,"actual_cost_annual":3217.429150502692},{"window":"W1","policy":"Textbook Formula","node_name":"Denver Suburban","node_type":"Store","region":"North America","fill_rate":0.9379609638187159,"day_service":0.9230769230769231,"mean_onhand":76.39011617056768,"actual_cost_annual":1812.3555061467184},{"window":"W1","policy":"Textbook Formula","node_name":"Phoenix Outlet","node_type":"Store","region":"North America","fill_rate":0.8907070338011966,"day_service":0.8901098901098901,"mean_onhand":41.245250996188396,"actual_cost_annual":933.3800300437434},{"window":"W1","policy":"Textbook Formula","node_name":"Los Angeles DC","node_type":"Regional Warehouse","region":"North America","fill_rate":0.9825280575435396,"day_service":0.9010989010989011,"mean_onhand":694.1302422198232,"actual_cost_annual":7600.726152307064},{"window":"W1","policy":"Textbook Formula","node_name":"London Flagship","node_type":"Store","region":"Europe","fill_rate":0.9801720514410289,"day_service":0.9340659340659341,"mean_onhand":142.62778326652258,"actual_cost_annual":5726.505498150882},{"window":"W1","policy":"Textbook Formula","node_name":"Berlin City","node_type":"Store","region":"Europe","fill_rate":0.9945270562292279,"day_service":0.9560439560439561,"mean_onhand":112.99389110734552,"actual_cost_annual":4330.490876689018},{"window":"W1","policy":"Textbook Formula","node_name":"Milan Boutique","node_type":"Store","region":"Europe","fill_rate":0.9486275752829793,"day_service":0.9120879120879121,"mean_onhand":89.48781908723258,"actual_cost_annual":3200.9792887503095},{"window":"W1","policy":"Textbook Formula","node_name":"Rotterdam DC","node_type":"Regional Warehouse","region":"Europe","fill_rate":0.9815880315264673,"day_service":0.945054945054945,"mean_onhand":623.7580305890428,"actual_cost_annual":10245.22565242503},{"window":"W1","policy":"Textbook Formula","node_name":"Tokyo Flagship","node_type":"Store","region":"Asia-Pacific","fill_rate":0.9811964350457539,"day_service":0.9120879120879121,"mean_onhand":152.38335436530707,"actual_cost_annual":2502.896595450168},{"window":"W1","policy":"Textbook Formula","node_name":"Sydney Harbour","node_type":"Store","region":"Asia-Pacific","fill_rate":1.0,"day_service":1.0,"mean_onhand":187.96732691253476,"actual_cost_annual":2744.3229729230075},{"window":"W1","policy":"Textbook Formula","node_name":"Jakarta Mall","node_type":"Store","region":"Asia-Pacific","fill_rate":0.9598629823884848,"day_service":0.967032967032967,"mean_onhand":86.97756790243186,"actual_cost_annual":1206.3788668067298},{"window":"W1","policy":"Textbook Formula","node_name":"Singapore DC","node_type":"Regional Warehouse","region":"Asia-Pacific","fill_rate":1.0,"day_service":1.0,"mean_onhand":1305.8717717886107,"actual_cost_annual":8579.577540651171},{"window":"W1","policy":"Every Store On Its Own","node_name":"New York Flagship","node_type":"Store","region":"North America","fill_rate":0.9878742864980675,"day_service":0.9230769230769231,"mean_onhand":242.91605353701772,"actual_cost_annual":6649.8269655758595},{"window":"W1","policy":"Every Store On Its Own","node_name":"Chicago Metro","node_type":"Store","region":"North America","fill_rate":0.9904367174024422,"day_service":0.9560439560439561,"mean_onhand":156.7559343403893,"actual_cost_annual":4005.1141223969476},{"window":"W1","policy":"Every Store On Its Own","node_name":"Denver Suburban","node_type":"Store","region":"North America","fill_rate":0.9707617492299245,"day_service":0.967032967032967,"mean_onhand":101.53873187661506,"actual_cost_annual":2409.006413772692},{"window":"W1","policy":"Every Store On Its Own","node_name":"Phoenix Outlet","node_type":"Store","region":"North America","fill_rate":0.9338075571663673,"day_service":0.945054945054945,"mean_onhand":47.446166487716454,"actual_cost_annual":1073.7067476170232},{"window":"W1","policy":"Every Store On Its Own","node_name":"Los Angeles DC","node_type":"Regional Warehouse","region":"North America","fill_rate":1.0,"day_service":1.0,"mean_onhand":1858.1115953893575,"actual_cost_annual":20346.321969513465},{"window":"W1","policy":"Every Store On Its Own","node_name":"London Flagship","node_type":"Store","region":"Europe","fill_rate":0.9913720312425759,"day_service":0.967032967032967,"mean_onhand":197.27873699555846,"actual_cost_annual":7920.741290371672},{"window":"W1","policy":"Every Store On Its Own","node_name":"Berlin City","node_type":"Store","region":"Europe","fill_rate":0.9987288184741906,"day_service":0.978021978021978,"mean_onhand":127.11295584088063,"actual_cost_annual":4871.60403260175},{"window":"W1","policy":"Every Store On Its Own","node_name":"Milan Boutique","node_type":"Store","region":"Europe","fill_rate":0.9694517941143124,"day_service":0.945054945054945,"mean_onhand":110.40605281714079,"actual_cost_annual":3949.2245092691264},{"window":"W1","policy":"Every Store On Its Own","node_name":"Rotterdam DC","node_type":"Regional Warehouse","region":"Europe","fill_rate":1.0,"day_service":1.0,"mean_onhand":2491.7328842476886,"actual_cost_annual":40926.71262376829},{"window":"W1","policy":"Every Store On Its Own","node_name":"Tokyo Flagship","node_type":"Store","region":"Asia-Pacific","fill_rate":0.9909212934246163,"day_service":0.945054945054945,"mean_onhand":194.41375909409138,"actual_cost_annual":3193.2459931204507},{"window":"W1","policy":"Every Store On Its Own","node_name":"Sydney Harbour","node_type":"Store","region":"Asia-Pacific","fill_rate":1.0,"day_service":1.0,"mean_onhand":216.10409549468446,"actual_cost_annual":3155.119794222393},{"window":"W1","policy":"Every Store On Its Own","node_name":"Jakarta Mall","node_type":"Store","region":"Asia-Pacific","fill_rate":0.9733411409324924,"day_service":0.967032967032967,"mean_onhand":116.55427599001372,"actual_cost_annual":1616.6078079814902},{"window":"W1","policy":"Every Store On Its Own","node_name":"Singapore DC","node_type":"Regional Warehouse","region":"Asia-Pacific","fill_rate":1.0,"day_service":1.0,"mean_onhand":1880.0824222475228,"actual_cost_annual":12352.141514166222},{"window":"W1","policy":"Shared Warehouse Buffer","node_name":"New York Flagship","node_type":"Store","region":"North America","fill_rate":0.9913134531420773,"day_service":0.978021978021978,"mean_onhand":195.02880475688718,"actual_cost_annual":5338.9135302197865},{"window":"W1","policy":"Shared Warehouse Buffer","node_name":"Chicago Metro","node_type":"Store","region":"North America","fill_rate":0.9873040911866475,"day_service":0.945054945054945,"mean_onhand":133.3512795423753,"actual_cost_annual":3407.125192307689},{"window":"W1","policy":"Shared Warehouse Buffer","node_name":"Denver Suburban","node_type":"Store","region":"North America","fill_rate":0.9716513216513216,"day_service":0.9560439560439561,"mean_onhand":84.64270660846016,"actual_cost_annual":2008.1482142857171},{"window":"W1","policy":"Shared Warehouse Buffer","node_name":"Phoenix Outlet","node_type":"Store","region":"North America","fill_rate":0.9376069565786995,"day_service":0.9230769230769231,"mean_onhand":47.74050880626227,"actual_cost_annual":1080.3677142857152},{"window":"W1","policy":"Shared Warehouse Buffer","node_name":"Los Angeles DC","node_type":"Regional Warehouse","region":"North America","fill_rate":1.0,"day_service":1.0,"mean_onhand":1972.6604091845447,"actual_cost_annual":21600.631480570766},{"window":"W1","policy":"Shared Warehouse Buffer","node_name":"London Flagship","node_type":"Store","region":"Europe","fill_rate":0.9856321164455922,"day_service":0.9560439560439561,"mean_onhand":167.91705554719232,"actual_cost_annual":6741.869780219772},{"window":"W1","policy":"Shared Warehouse Buffer","node_name":"Berlin City","node_type":"Store","region":"Europe","fill_rate":0.9835981166751928,"day_service":0.967032967032967,"mean_onhand":108.57230919765168,"actual_cost_annual":4161.0337500000005},{"window":"W1","policy":"Shared Warehouse Buffer","node_name":"Milan Boutique","node_type":"Store","region":"Europe","fill_rate":0.9691004437273093,"day_service":0.9560439560439561,"mean_onhand":86.23698630136994,"actual_cost_annual":3084.697000000003},{"window":"W1","policy":"Shared Warehouse Buffer","node_name":"Rotterdam DC","node_type":"Regional Warehouse","region":"Europe","fill_rate":1.0,"day_service":1.0,"mean_onhand":2706.607384096109,"actual_cost_annual":44456.026283778585},{"window":"W1","policy":"Shared Warehouse Buffer","node_name":"Tokyo Flagship","node_type":"Store","region":"Asia-Pacific","fill_rate":0.9946105702364395,"day_service":0.967032967032967,"mean_onhand":195.4038461538461,"actual_cost_annual":3209.508173076922},{"window":"W1","policy":"Shared Warehouse Buffer","node_name":"Sydney Harbour","node_type":"Store","region":"Asia-Pacific","fill_rate":1.0,"day_service":1.0,"mean_onhand":151.5580912238446,"actual_cost_annual":2212.748131868131},{"window":"W1","policy":"Shared Warehouse Buffer","node_name":"Jakarta Mall","node_type":"Store","region":"Asia-Pacific","fill_rate":0.9827734711455641,"day_service":0.978021978021978,"mean_onhand":78.50100858046059,"actual_cost_annual":1088.8089890109884},{"window":"W1","policy":"Shared Warehouse Buffer","node_name":"Singapore DC","node_type":"Regional Warehouse","region":"Asia-Pacific","fill_rate":1.0,"day_service":1.0,"mean_onhand":1890.752942024867,"actual_cost_annual":12422.246829103375},{"window":"W2","policy":"Textbook Formula","node_name":"New York Flagship","node_type":"Store","region":"North America","fill_rate":1.0,"day_service":1.0,"mean_onhand":345.56768959561924,"actual_cost_annual":9459.915502680076},{"window":"W2","policy":"Textbook Formula","node_name":"Chicago Metro","node_type":"Store","region":"North America","fill_rate":1.0,"day_service":1.0,"mean_onhand":172.66505237135186,"actual_cost_annual":4411.59208808804},{"window":"W2","policy":"Textbook Formula","node_name":"Denver Suburban","node_type":"Store","region":"North America","fill_rate":0.9979572674536464,"day_service":0.989010989010989,"mean_onhand":107.60483412302304,"actual_cost_annual":2552.9246895687215},{"window":"W2","policy":"Textbook Formula","node_name":"Phoenix Outlet","node_type":"Store","region":"North America","fill_rate":1.0,"day_service":1.0,"mean_onhand":62.09436206182698,"actual_cost_annual":1405.1954134591444},{"window":"W2","policy":"Textbook Formula","node_name":"Los Angeles DC","node_type":"Regional Warehouse","region":"North America","fill_rate":1.0,"day_service":1.0,"mean_onhand":2838.8812908359187,"actual_cost_annual":31085.750134653306},{"window":"W2","policy":"Textbook Formula","node_name":"London Flagship","node_type":"Store","region":"Europe","fill_rate":1.0,"day_service":1.0,"mean_onhand":285.86762138836923,"actual_cost_annual":11477.584998743025},{"window":"W2","policy":"Textbook Formula","node_name":"Berlin City","node_type":"Store","region":"Europe","fill_rate":1.0,"day_service":1.0,"mean_onhand":196.40449886242138,"actual_cost_annual":7527.202418902299},{"window":"W2","policy":"Textbook Formula","node_name":"Milan Boutique","node_type":"Store","region":"Europe","fill_rate":0.995674327772912,"day_service":0.989010989010989,"mean_onhand":129.58428311849414,"actual_cost_annual":4635.229807148536},{"window":"W2","policy":"Textbook Formula","node_name":"Rotterdam DC","node_type":"Regional Warehouse","region":"Europe","fill_rate":1.0,"day_service":1.0,"mean_onhand":3266.306326364022,"actual_cost_annual":53649.081410529056},{"window":"W2","policy":"Textbook Formula","node_name":"Tokyo Flagship","node_type":"Store","region":"Asia-Pacific","fill_rate":1.0,"day_service":1.0,"mean_onhand":228.51258815549411,"actual_cost_annual":3753.319260453991},{"window":"W2","policy":"Textbook Formula","node_name":"Sydney Harbour","node_type":"Store","region":"Asia-Pacific","fill_rate":0.9044104735532634,"day_service":0.8241758241758241,"mean_onhand":81.50682904924848,"actual_cost_annual":1189.999704119028},{"window":"W2","policy":"Textbook Formula","node_name":"Jakarta Mall","node_type":"Store","region":"Asia-Pacific","fill_rate":1.0,"day_service":1.0,"mean_onhand":89.45258537695175,"actual_cost_annual":1240.7073591783208},{"window":"W2","policy":"Textbook Formula","node_name":"Singapore DC","node_type":"Regional Warehouse","region":"Asia-Pacific","fill_rate":1.0,"day_service":1.0,"mean_onhand":1725.7167979897429,"actual_cost_annual":11337.95936279261},{"window":"W2","policy":"Every Store On Its Own","node_name":"New York Flagship","node_type":"Store","region":"North America","fill_rate":1.0,"day_service":1.0,"mean_onhand":426.1801825947954,"actual_cost_annual":11666.682498532524},{"window":"W2","policy":"Every Store On Its Own","node_name":"Chicago Metro","node_type":"Store","region":"North America","fill_rate":1.0,"day_service":1.0,"mean_onhand":206.73202051230976,"actual_cost_annual":5282.003124089514},{"window":"W2","policy":"Every Store On Its Own","node_name":"Denver Suburban","node_type":"Store","region":"North America","fill_rate":1.0,"day_service":1.0,"mean_onhand":131.89482672549966,"actual_cost_annual":3129.204764062479},{"window":"W2","policy":"Every Store On Its Own","node_name":"Phoenix Outlet","node_type":"Store","region":"North America","fill_rate":1.0,"day_service":1.0,"mean_onhand":70.33464701616482,"actual_cost_annual":1591.67306197581},{"window":"W2","policy":"Every Store On Its Own","node_name":"Los Angeles DC","node_type":"Regional Warehouse","region":"North America","fill_rate":1.0,"day_service":1.0,"mean_onhand":4101.018063752163,"actual_cost_annual":44906.147798086175},{"window":"W2","policy":"Every Store On Its Own","node_name":"London Flagship","node_type":"Store","region":"Europe","fill_rate":1.0,"day_service":1.0,"mean_onhand":345.29132344134655,"actual_cost_annual":13863.446636170063},{"window":"W2","policy":"Every Store On Its Own","node_name":"Berlin City","node_type":"Store","region":"Europe","fill_rate":1.0,"day_service":1.0,"mean_onhand":209.80183474342806,"actual_cost_annual":8040.655316541881},{"window":"W2","policy":"Every Store On Its Own","node_name":"Milan Boutique","node_type":"Store","region":"Europe","fill_rate":1.0,"day_service":1.0,"mean_onhand":156.15336324132306,"actual_cost_annual":5585.605803142126},{"window":"W2","policy":"Every Store On Its Own","node_name":"Rotterdam DC","node_type":"Regional Warehouse","region":"Europe","fill_rate":1.0,"day_service":1.0,"mean_onhand":4957.820592980027,"actual_cost_annual":81432.20323969694},{"window":"W2","policy":"Every Store On Its Own","node_name":"Tokyo Flagship","node_type":"Store","region":"Asia-Pacific","fill_rate":1.0,"day_service":1.0,"mean_onhand":272.94593862122974,"actual_cost_annual":4483.137041853698},{"window":"W2","policy":"Every Store On Its Own","node_name":"Sydney Harbour","node_type":"Store","region":"Asia-Pacific","fill_rate":0.9275215633210808,"day_service":0.8461538461538461,"mean_onhand":95.65696576362608,"actual_cost_annual":1396.5917001489408},{"window":"W2","policy":"Every Store On Its Own","node_name":"Jakarta Mall","node_type":"Store","region":"Asia-Pacific","fill_rate":1.0,"day_service":1.0,"mean_onhand":111.00334882475059,"actual_cost_annual":1539.6164481992905},{"window":"W2","policy":"Every Store On Its Own","node_name":"Singapore DC","node_type":"Regional Warehouse","region":"Asia-Pacific","fill_rate":1.0,"day_service":1.0,"mean_onhand":2295.9582947418367,"actual_cost_annual":15084.445996453866},{"window":"W2","policy":"Shared Warehouse Buffer","node_name":"New York Flagship","node_type":"Store","region":"North America","fill_rate":1.0,"day_service":1.0,"mean_onhand":301.25369192211247,"actual_cost_annual":8246.81981636783},{"window":"W2","policy":"Shared Warehouse Buffer","node_name":"Chicago Metro","node_type":"Store","region":"North America","fill_rate":0.9974932905209442,"day_service":0.978021978021978,"mean_onhand":168.1148448043183,"actual_cost_annual":4295.334284750333},{"window":"W2","policy":"Shared Warehouse Buffer","node_name":"Denver Suburban","node_type":"Store","region":"North America","fill_rate":1.0,"day_service":1.0,"mean_onhand":106.36830537883175,"actual_cost_annual":2523.588045112783},{"window":"W2","policy":"Shared Warehouse Buffer","node_name":"Phoenix Outlet","node_type":"Store","region":"North America","fill_rate":1.0,"day_service":1.0,"mean_onhand":62.9237998843262,"actual_cost_annual":1423.965591382302},{"window":"W2","policy":"Shared Warehouse Buffer","node_name":"Los Angeles DC","node_type":"Regional Warehouse","region":"North America","fill_rate":1.0,"day_service":1.0,"mean_onhand":4296.612153152944,"actual_cost_annual":47047.903077024734},{"window":"W2","policy":"Shared Warehouse Buffer","node_name":"London Flagship","node_type":"Store","region":"Europe","fill_rate":1.0,"day_service":1.0,"mean_onhand":255.42969924812024,"actual_cost_annual":10255.502424812028},{"window":"W2","policy":"Shared Warehouse Buffer","node_name":"Berlin City","node_type":"Store","region":"Europe","fill_rate":1.0,"day_service":1.0,"mean_onhand":163.4106227106225,"actual_cost_annual":6262.712115384608},{"window":"W2","policy":"Shared Warehouse Buffer","node_name":"Milan Boutique","node_type":"Store","region":"Europe","fill_rate":0.9850107066381156,"day_service":0.989010989010989,"mean_onhand":102.80865625602475,"actual_cost_annual":3677.465634278005},{"window":"W2","policy":"Shared Warehouse Buffer","node_name":"Rotterdam DC","node_type":"Regional Warehouse","region":"Europe","fill_rate":1.0,"day_service":1.0,"mean_onhand":5132.999336255849,"actual_cost_annual":84309.51409800231},{"window":"W2","policy":"Shared Warehouse Buffer","node_name":"Tokyo Flagship","node_type":"Store","region":"Asia-Pacific","fill_rate":1.0,"day_service":1.0,"mean_onhand":249.11179872758785,"actual_cost_annual":4091.66129410063},{"window":"W2","policy":"Shared Warehouse Buffer","node_name":"Sydney Harbour","node_type":"Store","region":"Asia-Pacific","fill_rate":0.9339433059909896,"day_service":0.9010989010989011,"mean_onhand":85.11967900520538,"actual_cost_annual":1242.7473134759987},{"window":"W2","policy":"Shared Warehouse Buffer","node_name":"Jakarta Mall","node_type":"Store","region":"Asia-Pacific","fill_rate":0.9972410454985479,"day_service":0.989010989010989,"mean_onhand":82.32394447657614,"actual_cost_annual":1141.8331098901112},{"window":"W2","policy":"Shared Warehouse Buffer","node_name":"Singapore DC","node_type":"Regional Warehouse","region":"Asia-Pacific","fill_rate":1.0,"day_service":1.0,"mean_onhand":2350.1338407268636,"actual_cost_annual":15440.379333575493},{"window":"W3","policy":"Textbook Formula","node_name":"New York Flagship","node_type":"Store","region":"North America","fill_rate":0.9875727258151218,"day_service":0.9456521739130435,"mean_onhand":225.56952399117554,"actual_cost_annual":6174.96571925843},{"window":"W3","policy":"Textbook Formula","node_name":"Chicago Metro","node_type":"Store","region":"North America","fill_rate":0.9951052862477556,"day_service":0.9782608695652174,"mean_onhand":179.16035251885066,"actual_cost_annual":4577.547006856635},{"window":"W3","policy":"Textbook Formula","node_name":"Denver Suburban","node_type":"Store","region":"North America","fill_rate":0.9780293072798103,"day_service":0.9456521739130435,"mean_onhand":83.2756589150425,"actual_cost_annual":1975.7150077593833},{"window":"W3","policy":"Textbook Formula","node_name":"Phoenix Outlet","node_type":"Store","region":"North America","fill_rate":0.9699336459925172,"day_service":0.9565217391304348,"mean_onhand":49.028016593389474,"actual_cost_annual":1109.5040155084037},{"window":"W3","policy":"Textbook Formula","node_name":"Los Angeles DC","node_type":"Regional Warehouse","region":"North America","fill_rate":1.0,"day_service":1.0,"mean_onhand":2132.372932811442,"actual_cost_annual":23349.483614285287},{"window":"W3","policy":"Textbook Formula","node_name":"London Flagship","node_type":"Store","region":"Europe","fill_rate":0.9752928970373931,"day_service":0.9021739130434783,"mean_onhand":143.4266108502524,"actual_cost_annual":5758.578425637634},{"window":"W3","policy":"Textbook Formula","node_name":"Berlin City","node_type":"Store","region":"Europe","fill_rate":0.991143836894603,"day_service":0.9565217391304348,"mean_onhand":132.23928821777298,"actual_cost_annual":5068.07072094615},{"window":"W3","policy":"Textbook Formula","node_name":"Milan Boutique","node_type":"Store","region":"Europe","fill_rate":0.9026948353213669,"day_service":0.9021739130434783,"mean_onhand":86.44047308499685,"actual_cost_annual":3091.9757222503376},{"window":"W3","policy":"Textbook Formula","node_name":"Rotterdam DC","node_type":"Regional Warehouse","region":"Europe","fill_rate":1.0,"day_service":1.0,"mean_onhand":2024.7448503983437,"actual_cost_annual":33256.434167792795},{"window":"W3","policy":"Textbook Formula","node_name":"Tokyo Flagship","node_type":"Store","region":"Asia-Pacific","fill_rate":0.9595819184108856,"day_service":0.8478260869565217,"mean_onhand":119.1056182962768,"actual_cost_annual":1956.3097805163463},{"window":"W3","policy":"Textbook Formula","node_name":"Sydney Harbour","node_type":"Store","region":"Asia-Pacific","fill_rate":0.9302096196881238,"day_service":0.8586956521739131,"mean_onhand":67.42190619412163,"actual_cost_annual":984.3598304341759},{"window":"W3","policy":"Textbook Formula","node_name":"Jakarta Mall","node_type":"Store","region":"Asia-Pacific","fill_rate":0.9527511750841073,"day_service":0.9565217391304348,"mean_onhand":93.43647529350365,"actual_cost_annual":1295.9639123208956},{"window":"W3","policy":"Textbook Formula","node_name":"Singapore DC","node_type":"Regional Warehouse","region":"Asia-Pacific","fill_rate":0.9772452360165451,"day_service":0.8913043478260869,"mean_onhand":860.5911916274744,"actual_cost_annual":5654.0841289925065},{"window":"W3","policy":"Every Store On Its Own","node_name":"New York Flagship","node_type":"Store","region":"North America","fill_rate":0.9953839550944028,"day_service":0.9782608695652174,"mean_onhand":302.8419546339724,"actual_cost_annual":8290.298508104994},{"window":"W3","policy":"Every Store On Its Own","node_name":"Chicago Metro","node_type":"Store","region":"North America","fill_rate":0.9997703315032034,"day_service":0.9891304347826086,"mean_onhand":213.54507347535025,"actual_cost_annual":5456.0766272952},{"window":"W3","policy":"Every Store On Its Own","node_name":"Denver Suburban","node_type":"Store","region":"North America","fill_rate":0.9956613546777641,"day_service":0.9782608695652174,"mean_onhand":97.50151693496746,"actual_cost_annual":2313.223489282103},{"window":"W3","policy":"Every Store On Its Own","node_name":"Phoenix Outlet","node_type":"Store","region":"North America","fill_rate":0.9846806165071177,"day_service":0.967391304347826,"mean_onhand":57.42887028817975,"actual_cost_annual":1299.6153346215078},{"window":"W3","policy":"Every Store On Its Own","node_name":"Los Angeles DC","node_type":"Regional Warehouse","region":"North America","fill_rate":1.0,"day_service":1.0,"mean_onhand":3610.3296077285872,"actual_cost_annual":39533.10920462803},{"window":"W3","policy":"Every Store On Its Own","node_name":"London Flagship","node_type":"Store","region":"Europe","fill_rate":0.9960784001844307,"day_service":0.9565217391304348,"mean_onhand":200.17465302189842,"actual_cost_annual":8037.012318829221},{"window":"W3","policy":"Every Store On Its Own","node_name":"Berlin City","node_type":"Store","region":"Europe","fill_rate":0.9975681023403896,"day_service":0.9782608695652174,"mean_onhand":152.50668223502885,"actual_cost_annual":5844.818596657481},{"window":"W3","policy":"Every Store On Its Own","node_name":"Milan Boutique","node_type":"Store","region":"Europe","fill_rate":0.9291275337899493,"day_service":0.9456521739130435,"mean_onhand":100.89904194301562,"actual_cost_annual":3609.158730301669},{"window":"W3","policy":"Every Store On Its Own","node_name":"Rotterdam DC","node_type":"Regional Warehouse","region":"Europe","fill_rate":1.0,"day_service":1.0,"mean_onhand":3964.727703634362,"actual_cost_annual":65120.6525321944},{"window":"W3","policy":"Every Store On Its Own","node_name":"Tokyo Flagship","node_type":"Store","region":"Asia-Pacific","fill_rate":0.9755010474211828,"day_service":0.9239130434782609,"mean_onhand":155.69263951180147,"actual_cost_annual":2557.251603981339},{"window":"W3","policy":"Every Store On Its Own","node_name":"Sydney Harbour","node_type":"Store","region":"Asia-Pacific","fill_rate":0.9497874856925227,"day_service":0.8913043478260869,"mean_onhand":84.27764197759096,"actual_cost_annual":1230.453572872828},{"window":"W3","policy":"Every Store On Its Own","node_name":"Jakarta Mall","node_type":"Store","region":"Asia-Pacific","fill_rate":1.0,"day_service":1.0,"mean_onhand":112.08975803643202,"actual_cost_annual":1554.6849439653122},{"window":"W3","policy":"Every Store On Its Own","node_name":"Singapore DC","node_type":"Regional Warehouse","region":"Asia-Pacific","fill_rate":1.0,"day_service":1.0,"mean_onhand":1313.1564091564662,"actual_cost_annual":8627.437608157981},{"window":"W3","policy":"Shared Warehouse Buffer","node_name":"New York Flagship","node_type":"Store","region":"North America","fill_rate":0.9952437410389324,"day_service":0.9891304347826086,"mean_onhand":216.35038848263238,"actual_cost_annual":5922.591884712061},{"window":"W3","policy":"Shared Warehouse Buffer","node_name":"Chicago Metro","node_type":"Store","region":"North America","fill_rate":0.9948310925319173,"day_service":0.9891304347826086,"mean_onhand":166.4109897861856,"actual_cost_annual":4251.800789037043},{"window":"W3","policy":"Shared Warehouse Buffer","node_name":"Denver Suburban","node_type":"Store","region":"North America","fill_rate":0.9900760833608998,"day_service":0.9782608695652174,"mean_onhand":88.82694141960098,"actual_cost_annual":2107.4191851800333},{"window":"W3","policy":"Shared Warehouse Buffer","node_name":"Phoenix Outlet","node_type":"Store","region":"North America","fill_rate":0.9741952399236645,"day_service":0.9891304347826086,"mean_onhand":53.060666878626506,"actual_cost_annual":1200.7628914633178},{"window":"W3","policy":"Shared Warehouse Buffer","node_name":"Los Angeles DC","node_type":"Regional Warehouse","region":"North America","fill_rate":1.0,"day_service":1.0,"mean_onhand":3827.547617666836,"actual_cost_annual":41911.646413451854},{"window":"W3","policy":"Shared Warehouse Buffer","node_name":"London Flagship","node_type":"Store","region":"Europe","fill_rate":0.9852082350165172,"day_service":0.9239130434782609,"mean_onhand":163.5841596454971,"actual_cost_annual":6567.904009766708},{"window":"W3","policy":"Shared Warehouse Buffer","node_name":"Berlin City","node_type":"Store","region":"Europe","fill_rate":1.0,"day_service":1.0,"mean_onhand":118.87975916063897,"actual_cost_annual":4556.066769831488},{"window":"W3","policy":"Shared Warehouse Buffer","node_name":"Milan Boutique","node_type":"Store","region":"Europe","fill_rate":0.9561336878085833,"day_service":0.9456521739130435,"mean_onhand":81.56864716636193,"actual_cost_annual":2917.710509140766},{"window":"W3","policy":"Shared Warehouse Buffer","node_name":"Rotterdam DC","node_type":"Regional Warehouse","region":"Europe","fill_rate":1.0,"day_service":1.0,"mean_onhand":4125.307316520028,"actual_cost_annual":67758.17267384144},{"window":"W3","policy":"Shared Warehouse Buffer","node_name":"Tokyo Flagship","node_type":"Store","region":"Asia-Pacific","fill_rate":0.9850229910225531,"day_service":0.9239130434782609,"mean_onhand":164.23457793498133,"actual_cost_annual":2697.552942582068},{"window":"W3","policy":"Shared Warehouse Buffer","node_name":"Sydney Harbour","node_type":"Store","region":"Asia-Pacific","fill_rate":0.9673378522062732,"day_service":0.9347826086956522,"mean_onhand":89.07756040855257,"actual_cost_annual":1300.5323819648675},{"window":"W3","policy":"Shared Warehouse Buffer","node_name":"Jakarta Mall","node_type":"Store","region":"Asia-Pacific","fill_rate":0.9998730964467005,"day_service":0.9891304347826086,"mean_onhand":84.69645099753602,"actual_cost_annual":1174.7397753358246},{"window":"W3","policy":"Shared Warehouse Buffer","node_name":"Singapore DC","node_type":"Regional Warehouse","region":"Asia-Pacific","fill_rate":1.0,"day_service":1.0,"mean_onhand":1326.5623646660529,"actual_cost_annual":8715.514735855966},{"window":"W4","policy":"Textbook Formula","node_name":"New York Flagship","node_type":"Store","region":"North America","fill_rate":0.8994059651496673,"day_service":0.6483516483516483,"mean_onhand":65.29911695632252,"actual_cost_annual":1787.563326679329},{"window":"W4","policy":"Textbook Formula","node_name":"Chicago Metro","node_type":"Store","region":"North America","fill_rate":0.9100645113057829,"day_service":0.7472527472527473,"mean_onhand":68.52759467076802,"actual_cost_annual":1750.8800438381234},{"window":"W4","policy":"Textbook Formula","node_name":"Denver Suburban","node_type":"Store","region":"North America","fill_rate":0.6947712259726542,"day_service":0.6373626373626373,"mean_onhand":45.18109848118861,"actual_cost_annual":1071.9215614662},{"window":"W4","policy":"Textbook Formula","node_name":"Phoenix Outlet","node_type":"Store","region":"North America","fill_rate":0.7322881388812172,"day_service":0.7142857142857143,"mean_onhand":30.356771862075032,"actual_cost_annual":686.9737472387579},{"window":"W4","policy":"Textbook Formula","node_name":"Los Angeles DC","node_type":"Regional Warehouse","region":"North America","fill_rate":0.8529464846538146,"day_service":0.5934065934065934,"mean_onhand":208.49183046960852,"actual_cost_annual":2282.985543642213},{"window":"W4","policy":"Textbook Formula","node_name":"London Flagship","node_type":"Store","region":"Europe","fill_rate":0.8859571159043127,"day_service":0.6703296703296704,"mean_onhand":54.41574288510111,"actual_cost_annual":2184.7920768368094},{"window":"W4","policy":"Textbook Formula","node_name":"Berlin City","node_type":"Store","region":"Europe","fill_rate":0.9018392592230289,"day_service":0.7912087912087912,"mean_onhand":70.53735729209306,"actual_cost_annual":2703.3442182194663},{"window":"W4","policy":"Textbook Formula","node_name":"Milan Boutique","node_type":"Store","region":"Europe","fill_rate":0.6819369498158023,"day_service":0.6483516483516483,"mean_onhand":47.409120139296526,"actual_cost_annual":1695.824227382637},{"window":"W4","policy":"Textbook Formula","node_name":"Rotterdam DC","node_type":"Regional Warehouse","region":"Europe","fill_rate":0.7968694580095735,"day_service":0.4065934065934066,"mean_onhand":83.38296975079068,"actual_cost_annual":1369.565278156737},{"window":"W4","policy":"Textbook Formula","node_name":"Tokyo Flagship","node_type":"Store","region":"Asia-Pacific","fill_rate":0.8973930392357881,"day_service":0.7252747252747253,"mean_onhand":90.20781162347778,"actual_cost_annual":1481.6633059156225},{"window":"W4","policy":"Textbook Formula","node_name":"Sydney Harbour","node_type":"Store","region":"Asia-Pacific","fill_rate":1.0,"day_service":1.0,"mean_onhand":165.37344559988827,"actual_cost_annual":2414.4523057583688},{"window":"W4","policy":"Textbook Formula","node_name":"Jakarta Mall","node_type":"Store","region":"Asia-Pacific","fill_rate":0.9236881424094789,"day_service":0.9340659340659341,"mean_onhand":80.69165425223119,"actual_cost_annual":1119.1932444784466},{"window":"W4","policy":"Textbook Formula","node_name":"Singapore DC","node_type":"Regional Warehouse","region":"Asia-Pacific","fill_rate":1.0,"day_service":1.0,"mean_onhand":700.2813998036577,"actual_cost_annual":4600.848796710031},{"window":"W4","policy":"Every Store On Its Own","node_name":"New York Flagship","node_type":"Store","region":"North America","fill_rate":0.9375806318153799,"day_service":0.7692307692307692,"mean_onhand":102.13065800057566,"actual_cost_annual":2795.8267627657588},{"window":"W4","policy":"Every Store On Its Own","node_name":"Chicago Metro","node_type":"Store","region":"North America","fill_rate":0.9561238409388559,"day_service":0.8241758241758241,"mean_onhand":85.36417643094495,"actual_cost_annual":2181.054707810644},{"window":"W4","policy":"Every Store On Its Own","node_name":"Denver Suburban","node_type":"Store","region":"North America","fill_rate":0.867209340166069,"day_service":0.8241758241758241,"mean_onhand":55.14188533880276,"actual_cost_annual":1308.2412296630955},{"window":"W4","policy":"Every Store On Its Own","node_name":"Phoenix Outlet","node_type":"Store","region":"North America","fill_rate":0.9970397920326955,"day_service":0.978021978021978,"mean_onhand":51.00733817515647,"actual_cost_annual":1154.296062903791},{"window":"W4","policy":"Every Store On Its Own","node_name":"Los Angeles DC","node_type":"Regional Warehouse","region":"North America","fill_rate":1.0,"day_service":1.0,"mean_onhand":1040.909726818815,"actual_cost_annual":11397.961508666023},{"window":"W4","policy":"Every Store On Its Own","node_name":"London Flagship","node_type":"Store","region":"Europe","fill_rate":0.9254811286617612,"day_service":0.7472527472527473,"mean_onhand":80.31662850106888,"actual_cost_annual":3224.7126343179157},{"window":"W4","policy":"Every Store On Its Own","node_name":"Berlin City","node_type":"Store","region":"Europe","fill_rate":0.9573123480802336,"day_service":0.8901098901098901,"mean_onhand":97.10141868777794,"actual_cost_annual":3721.4118712090894},{"window":"W4","policy":"Every Store On Its Own","node_name":"Milan Boutique","node_type":"Store","region":"Europe","fill_rate":0.8582645223251133,"day_service":0.8571428571428572,"mean_onhand":75.63718629158345,"actual_cost_annual":2705.54215364994},{"window":"W4","policy":"Every Store On Its Own","node_name":"Rotterdam DC","node_type":"Regional Warehouse","region":"Europe","fill_rate":1.0,"day_service":1.0,"mean_onhand":1367.3648090317822,"actual_cost_annual":22458.966988347023},{"window":"W4","policy":"Every Store On Its Own","node_name":"Tokyo Flagship","node_type":"Store","region":"Asia-Pacific","fill_rate":0.9227456952953889,"day_service":0.7582417582417582,"mean_onhand":118.90870342182289,"actual_cost_annual":1953.075453703441},{"window":"W4","policy":"Every Store On Its Own","node_name":"Sydney Harbour","node_type":"Store","region":"Asia-Pacific","fill_rate":1.0,"day_service":1.0,"mean_onhand":193.52740822077632,"actual_cost_annual":2825.5001600233345},{"window":"W4","policy":"Every Store On Its Own","node_name":"Jakarta Mall","node_type":"Store","region":"Asia-Pacific","fill_rate":0.944909465944459,"day_service":0.9340659340659341,"mean_onhand":95.04253378132705,"actual_cost_annual":1318.239943547006},{"window":"W4","policy":"Every Store On Its Own","node_name":"Singapore DC","node_type":"Regional Warehouse","region":"Asia-Pacific","fill_rate":1.0,"day_service":1.0,"mean_onhand":1272.931501909086,"actual_cost_annual":8363.159967542693},{"window":"W4","policy":"Shared Warehouse Buffer","node_name":"New York Flagship","node_type":"Store","region":"North America","fill_rate":0.9557450665639532,"day_service":0.8131868131868132,"mean_onhand":103.28059123974606,"actual_cost_annual":2827.3061851880484},{"window":"W4","policy":"Shared Warehouse Buffer","node_name":"Chicago Metro","node_type":"Store","region":"North America","fill_rate":0.9626987094465147,"day_service":0.8791208791208791,"mean_onhand":100.27963507540974,"actual_cost_annual":2562.1446761767193},{"window":"W4","policy":"Shared Warehouse Buffer","node_name":"Denver Suburban","node_type":"Store","region":"North America","fill_rate":0.9256438969764837,"day_service":0.8681318681318682,"mean_onhand":58.5817572099262,"actual_cost_annual":1389.8521898054992},{"window":"W4","policy":"Shared Warehouse Buffer","node_name":"Phoenix Outlet","node_type":"Store","region":"North America","fill_rate":0.9915152599703854,"day_service":0.967032967032967,"mean_onhand":49.41403119572127,"actual_cost_annual":1118.2395259591724},{"window":"W4","policy":"Shared Warehouse Buffer","node_name":"Los Angeles DC","node_type":"Regional Warehouse","region":"North America","fill_rate":1.0,"day_service":1.0,"mean_onhand":978.5817634491757,"actual_cost_annual":10715.470309768474},{"window":"W4","policy":"Shared Warehouse Buffer","node_name":"London Flagship","node_type":"Store","region":"Europe","fill_rate":0.9595583902474748,"day_service":0.7692307692307692,"mean_onhand":96.47118609090441,"actual_cost_annual":3873.3181215498125},{"window":"W4","policy":"Shared Warehouse Buffer","node_name":"Berlin City","node_type":"Store","region":"Europe","fill_rate":0.9667193438936097,"day_service":0.9120879120879121,"mean_onhand":84.79337563844612,"actual_cost_annual":3249.7061213434476},{"window":"W4","policy":"Shared Warehouse Buffer","node_name":"Milan Boutique","node_type":"Store","region":"Europe","fill_rate":0.9094483389210606,"day_service":0.9120879120879121,"mean_onhand":70.66818603931273,"actual_cost_annual":2527.8010146262163},{"window":"W4","policy":"Shared Warehouse Buffer","node_name":"Rotterdam DC","node_type":"Regional Warehouse","region":"Europe","fill_rate":1.0,"day_service":1.0,"mean_onhand":1151.7978452746763,"actual_cost_annual":18918.27960863656},{"window":"W4","policy":"Shared Warehouse Buffer","node_name":"Tokyo Flagship","node_type":"Store","region":"Asia-Pacific","fill_rate":0.9487018589693309,"day_service":0.8681318681318682,"mean_onhand":131.4756573629813,"actual_cost_annual":2159.4876721869678},{"window":"W4","policy":"Shared Warehouse Buffer","node_name":"Sydney Harbour","node_type":"Store","region":"Asia-Pacific","fill_rate":1.0,"day_service":1.0,"mean_onhand":138.19870161137757,"actual_cost_annual":2017.7010435261125},{"window":"W4","policy":"Shared Warehouse Buffer","node_name":"Jakarta Mall","node_type":"Store","region":"Asia-Pacific","fill_rate":0.9568133276377616,"day_service":0.967032967032967,"mean_onhand":74.16282825156073,"actual_cost_annual":1028.638427849147},{"window":"W4","policy":"Shared Warehouse Buffer","node_name":"Singapore DC","node_type":"Regional Warehouse","region":"Asia-Pacific","fill_rate":1.0,"day_service":1.0,"mean_onhand":1155.0753239056014,"actual_cost_annual":7588.8448780598}],"windows":["W1","W2","W3","W4"],"saving":{"W1":0.01473511107856952,"W2":0.04061580749110042,"W3":0.015581670726180418,"W4":0.08303572263310965},"corr":-0.8997101038961057,"policy_label":{"naive":"Textbook Formula (Naive Baseline)","decentralized_95":"Every Store On Its Own (Decentralized 95%)","optimized":"Shared Warehouse Buffer (Optimized Multi-Echelon)"},"policy_short":{"naive":"Textbook Formula","decentralized_95":"Every Store On Its Own","optimized":"Shared Warehouse Buffer"},"colors":{"cream":"#faf6ee","card":"#f3ece0","plot":"#fffdf7","ink":"#2b2620","muted":"#6b6155","terra":"#9a3f1b","grid":"#e3dccd","teal":"#2c9a88","blue":"#2961ce","rust":"#ab4400"}};
+const C = D.colors;
+const PCT = v => (v * 100).toFixed(2) + '%';
+const PCT1 = v => (v * 100).toFixed(1) + '%';
+const USD = v => '$' + Math.round(v).toLocaleString('en-US');
+
+const byWin = {};
+D.summary.forEach(r => { (byWin[r.window] = byWin[r.window] || {})[r.policy] = r; });
+const WINS = D.windows;
+const QLAB = WINS.map(w => byWin[w].naive.quarter);
+
+const LAYOUT = () => ({
+  paper_bgcolor: 'rgba(0,0,0,0)',
+  plot_bgcolor: C.plot,
+  font: { color: C.ink, size: 13,
+          family: '-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif' },
+  margin: { l: 90, r: 30, t: 80, b: 66 },
+  legend: { orientation: 'h', yanchor: 'bottom', y: 1.02, x: 0,
+            bgcolor: 'rgba(0,0,0,0)' },
+  hoverlabel: { bgcolor: '#ffffff', bordercolor: C.grid,
+                font: { color: C.ink, size: 13 } },
+  title: { font: { size: 15, color: C.terra }, x: 0, xref: 'paper',
+           xanchor: 'left', y: 0.97, yanchor: 'top' },
+  xaxis: { gridcolor: C.grid, zerolinecolor: C.grid, linecolor: C.grid,
+           automargin: true, tickfont: { color: C.muted },
+           title: { font: { color: C.muted }, standoff: 14 } },
+  yaxis: { gridcolor: C.grid, zerolinecolor: C.grid, linecolor: C.grid,
+           automargin: true, tickfont: { color: C.muted },
+           title: { font: { color: C.muted }, standoff: 14 } }
+});
+const CFG = { displayModeBar: false, responsive: true };
+
+/* ---------- top metrics ---------- */
+(function () {
+  const naiveDC = WINS.map(w => byWin[w].naive.dc_fill);
+  const worst = Math.min(...naiveDC);
+  const sav = WINS.map(w => D.saving[w]);
+  const mean = sav.reduce((a, b) => a + b, 0) / sav.length;
+  const cards = [
+    ['Warehouse Reliability &mdash; New Method', '100%', 'held in all 4 test periods', false],
+    ['Warehouse Reliability &mdash; Textbook Method', PCT1(worst),
+     PCT1(worst - 1) + ' at its worst', true],
+    ['Money Saved (Range)', PCT1(Math.min(...sav)) + '&ndash;' + PCT1(Math.max(...sav)),
+     'average ' + PCT1(mean), false],
+    ['Test Periods Run', String(WINS.length), '3 months each', false]
+  ];
+  document.getElementById('topMetrics').innerHTML = cards.map(
+    ([l, v, s, bad]) => `<div class="metric"><div class="label">${l}</div>` +
+      `<div class="value">${v}</div>` +
+      `<div class="sub${bad ? ' bad' : ''}">${s}</div></div>`).join('');
+
+  document.getElementById('dcCaption').innerHTML =
+    `The new method keeps every regional warehouse able to fill <strong>100%</strong>` +
+    ` of store restock orders in all four test periods. The textbook method looks` +
+    ` perfectly healthy when trade is calm &mdash; it also hits 100% in Q2 2024, the` +
+    ` one quarter where demand came in <em>below</em> what it had planned for &mdash;` +
+    ` but falls to <strong>${PCT1(worst)}</strong> in Q4 2024, the Christmas peak.` +
+    ` That is the whole point: it fails exactly when it is needed most, and looks` +
+    ` fine the rest of the year.`;
+
+  document.getElementById('savingCaption').innerHTML =
+    `Sharing backup stock centrally was cheaper in <strong>every single test` +
+    ` period</strong>, so the direction of this finding is solid. The size is not:` +
+    ` it ranged from <strong>${PCT1(Math.min(...sav))}</strong> to` +
+    ` <strong>${PCT1(Math.max(...sav))}</strong>, averaging` +
+    ` <strong>${PCT1(mean)}</strong>. An earlier version of this analysis, based on` +
+    ` a single test period, reported 2.7% &mdash; which turned out to be one draw` +
+    ` from a wide spread rather than a dependable figure. Quote the range, not a` +
+    ` single number.`;
+
+  const c = D.corr;
+  document.getElementById('corrCaption').innerHTML =
+    `The statistical summary of that pattern is a correlation of` +
+    ` <strong>${c.toFixed(2)}</strong> &mdash; which in plain terms means:` +
+    ` <strong>as demand rises above what the plan plans for, the textbook` +
+    ` method&rsquo;s warehouse reliability drops, consistently and steeply.</strong>` +
+    ` A correlation of &minus;1.00 would be a perfect straight-line relationship, so` +
+    ` ${c.toFixed(2)} is a strong one. With only four test periods this is an` +
+    ` indication rather than proof, but it matches the mechanism exactly.`;
+
+  const oc = WINS.map(w => byWin[w].optimized.cost);
+  const w4 = byWin[WINS[WINS.length - 1]].naive;
+  document.getElementById('costWarning').innerHTML =
+    `<strong>&#9888; Please read this before reading the chart.</strong> The cost` +
+    ` figure here is the value of stock actually sitting on shelves. That means` +
+    ` <em>a lower number can signal a failing policy rather than an efficient` +
+    ` one</em> &mdash; when demand outstrips supply the shelves empty, and empty` +
+    ` shelves are cheap to hold.<br><br>This data contains a clear example. In` +
+    ` <strong>${w4.quarter} the textbook method produced the lowest cost figure in` +
+    ` the entire study, ${USD(w4.cost)} a year &mdash; while meeting only` +
+    ` ${PCT1(w4.store_fill)} of customer demand</strong> and leaving its warehouses` +
+    ` able to fill just ${PCT1(w4.dc_fill)} of store restock orders. That is not a` +
+    ` cheap policy; it is an out-of-stock one.<br><br>For the same reason this chart` +
+    ` shows <strong>one period at a time</strong>. The identical shared-warehouse` +
+    ` method costs ${USD(Math.max(...oc))} a year in the quietest period and` +
+    ` ${USD(Math.min(...oc))} in the busiest &mdash; a threefold difference that` +
+    ` reflects how busy trade was, not how good the policy is.`;
+})();
+
+/* ---------- 1. warehouse reliability dumbbell ---------- */
+(function () {
+  const nv = WINS.map(w => byWin[w].naive.dc_fill * 100);
+  const ov = WINS.map(w => byWin[w].optimized.dc_fill * 100);
+  const traces = [];
+  QLAB.forEach((q, i) => traces.push({
+    x: [nv[i], ov[i]], y: [q, q], mode: 'lines', type: 'scatter',
+    line: { color: C.grid, width: 4 }, showlegend: false, hoverinfo: 'skip'
+  }));
+  traces.push({
+    x: nv, y: QLAB, mode: 'markers+text', type: 'scatter',
+    name: 'Textbook Formula (Naive Baseline)',
+    marker: { color: C.rust, size: 15, line: { color: C.plot, width: 2 } },
+    text: nv.map(v => v.toFixed(1) + '%'), textposition: 'middle left',
+    textfont: { color: C.muted, size: 12 },
+    customdata: nv.map(v => 100 - v),
+    hovertemplate: '<b>Textbook Formula</b> &middot; %{y}<br>' +
+      'The warehouse could fill %{x:.1f}% of what stores asked for<br>' +
+      '%{customdata:.1f}% of store restock requests went unfilled<extra></extra>'
+  });
+  traces.push({
+    x: ov, y: QLAB, mode: 'markers+text', type: 'scatter',
+    name: 'Shared Warehouse Buffer (Optimized)',
+    marker: { color: C.teal, size: 15, line: { color: C.plot, width: 2 } },
+    text: ov.map(v => v.toFixed(1) + '%'), textposition: 'middle right',
+    textfont: { color: C.muted, size: 12 },
+    hovertemplate: '<b>Shared Warehouse Buffer</b> &middot; %{y}<br>' +
+      'The warehouse could fill %{x:.1f}% of what stores asked for<br>' +
+      'Every store restock request was met in full<extra></extra>'
+  });
+  const L = LAYOUT();
+  L.title.text = 'Share Of Store Restock Orders The Regional Warehouse Could Fill';
+  L.xaxis.title.text = '% of store restock orders filled';
+  L.xaxis.range = [83.5, 103.5]; L.xaxis.ticksuffix = '%';
+  L.height = 400;
+  Plotly.newPlot('chartDC', traces, L, CFG);
+})();
+
+/* ---------- 2. demand pressure scatter (toggleable) ---------- */
+function drawScatter(view) {
+  const src = WINS.map(w => byWin[w].naive);
+  const x = src.map(r => (r.demand_ratio - 1) * 100);
+  const y = src.map(r => r.dc_fill * 100);
+  const trace = {
+    x, y, mode: 'markers+text', type: 'scatter',
+    marker: { color: C.rust, size: 18, line: { color: C.plot, width: 2 } },
+    text: src.map(r => r.quarter),
+    textposition: src.map(r => r.quarter === 'Q1 2024' ? 'bottom center' : 'top center'),
+    textfont: { color: C.ink, size: 12 },
+    customdata: src.map(r => [r.quarter, (1 - r.dc_fill) * 100]),
+    hovertemplate: '<b>%{customdata[0]}</b><br>' +
+      'Demand ran %{x:+.1f}% versus the period the plan was built from<br>' +
+      'Warehouses filled %{y:.1f}% of store restock orders<br>' +
+      '(%{customdata[1]:.1f% of requests went unfilled)<extra></extra>',
+    showlegend: false
+  };
+  const L = LAYOUT();
+  L.title.text = 'Busier Periods vs Warehouse Reliability (Textbook Method)';
+  L.xaxis.title.text = 'How much busier the test period was than the plan expected (%)';
+  L.yaxis.title.text = '% of store restock orders the warehouse could fill';
+  L.xaxis.ticksuffix = '%'; L.xaxis.zeroline = true;
+  L.yaxis.ticksuffix = '%'; L.yaxis.range = [85, 104];
+  L.height = 450;
+  if (view === 'explained') {
+    const hardest = src.reduce((a, b) => a.demand_ratio > b.demand_ratio ? a : b);
+    const easiest = src.reduce((a, b) => a.demand_ratio < b.demand_ratio ? a : b);
+    L.annotations = [
+      { x: (hardest.demand_ratio - 1) * 100, y: hardest.dc_fill * 100,
+        ax: -120, ay: -55, showarrow: true, arrowhead: 2,
+        arrowcolor: C.rust, arrowwidth: 1.5, align: 'left', borderpad: 6,
+        bgcolor: 'rgba(255,253,247,0.92)', bordercolor: C.rust, borderwidth: 1,
+        font: { color: C.ink, size: 11 },
+        text: '<b>Christmas peak</b><br>demand ' +
+          Math.round((hardest.demand_ratio - 1) * 100) + '% above plan,<br>warehouses failed ' +
+          Math.round((1 - hardest.dc_fill) * 100) + '% of orders' },
+      { x: (easiest.demand_ratio - 1) * 100, y: easiest.dc_fill * 100,
+        ax: 70, ay: 48, showarrow: true, arrowhead: 2,
+        arrowcolor: C.muted, arrowwidth: 1.5, align: 'left', borderpad: 6,
+        bgcolor: 'rgba(255,253,247,0.92)', bordercolor: C.grid, borderwidth: 1,
+        font: { color: C.ink, size: 11 },
+        text: '<b>Quiet quarter</b><br>demand ' +
+          Math.abs(Math.round((easiest.demand_ratio - 1) * 100)) +
+          '% below plan,<br>everything looks fine' },
+      { x: 4.5, y: 92.5, showarrow: false, align: 'left', borderpad: 8,
+        bgcolor: 'rgba(243,236,224,0.85)', font: { color: C.terra, size: 12 },
+        text: '<b>The pattern:</b> busier period &rarr; worse warehouse reliability.<br>' +
+          'Every extra bit of demand makes the textbook plan fail more.' }
+    ];
+  }
+  Plotly.newPlot('chartScatter', [trace], L, CFG);
+}
+document.querySelectorAll('#viewToggle button').forEach(b => {
+  b.addEventListener('click', () => {
+    document.querySelectorAll('#viewToggle button').forEach(o =>
+      o.setAttribute('aria-pressed', String(o === b)));
+    drawScatter(b.dataset.view);
+  });
+});
+drawScatter('explained');
+
+/* ---------- 3. saving by period ---------- */
+(function () {
+  const sav = WINS.map(w => D.saving[w] * 100);
+  const mean = sav.reduce((a, b) => a + b, 0) / sav.length;
+  const abs = WINS.map(w =>
+    byWin[w].decentralized_95.cost - byWin[w].optimized.cost);
+  const L = LAYOUT();
+  L.title.text = 'How Much Cheaper Sharing Backup Stock Was, By Test Period';
+  L.yaxis.title.text = 'Money saved (%)';
+  L.yaxis.range = [0, 10.5]; L.yaxis.ticksuffix = '%';
+  L.height = 400;
+  L.shapes = [{ type: 'line', xref: 'paper', x0: 0, x1: 1, y0: mean, y1: mean,
+                line: { color: C.blue, width: 2, dash: 'dash' } }];
+  L.annotations = [{ xref: 'paper', x: 0.01, y: mean, yanchor: 'bottom',
+    showarrow: false, font: { color: C.blue, size: 12 },
+    text: 'average across all four periods: ' + mean.toFixed(1) + '%' }];
+  Plotly.newPlot('chartSaving', [{
+    x: QLAB, y: sav, type: 'bar',
+    marker: { color: C.teal, cornerradius: 4 }, width: 0.5,
+    text: sav.map(v => v.toFixed(1) + '%'), textposition: 'outside',
+    textfont: { color: C.ink, size: 13 },
+    customdata: abs,
+    hovertemplate: '<b>%{x}</b><br>Sharing backup stock centrally cost ' +
+      '%{y:.1f}% less<br>than giving every store its own &mdash; about ' +
+      '$%{customdata:,.0f} a year<extra></extra>',
+    showlegend: false
+  }], L, CFG);
+})();
+
+/* ---------- 4. expedite sensitivity ---------- */
+const EXP_NAME = d => d === 0 ? 'Same day' : d + ' day' + (d > 1 ? 's' : '');
+function drawExpedite(days) {
+  const cur = D.expedite.find(e => e.days === days);
+  const base = D.expedite.find(e => e.days === 1);
+  document.getElementById('expLabel').textContent = EXP_NAME(days);
+  const isBase = days === 1;
+  const cards = [
+    ['% Of Demand Met On Time', PCT(cur.store_fill),
+      isBase ? 'the assumption used elsewhere on this page'
+             : ((cur.store_fill - base.store_fill) * 100).toFixed(2) +
+               '% vs a 1-day assumption'],
+    ['Yearly Cost Of Stock Held', USD(cur.cost),
+      isBase ? 'the assumption used elsewhere on this page'
+             : (((cur.cost - base.cost) / base.cost) * 100).toFixed(1) +
+               '% vs a 1-day assumption'],
+    ['Warehouse Order Fill', PCT(cur.dc_fill), 'stores got what they asked for']
+  ];
+  document.getElementById('expMetrics').innerHTML = cards.map(
+    ([l, v, s]) => `<div class="metric"><div class="label">${l}</div>` +
+      `<div class="value">${v}</div><div class="sub">${s}</div></div>`).join('');
+
+  const L = LAYOUT();
+  L.title.text = 'Customer Demand Met On Time, By Emergency Delivery Speed';
+  L.yaxis.title.text = '% of demand met on time';
+  L.xaxis.title.text = 'Emergency delivery speed';
+  /* Zero-based on purpose: bars are read by length, and it also carries the
+     message that the four options are indistinguishable. */
+  L.yaxis.range = [0, 108]; L.yaxis.ticksuffix = '%';
+  L.height = 390;
+  Plotly.newPlot('chartExp', [{
+    x: D.expedite.map(e => EXP_NAME(e.days)),
+    y: D.expedite.map(e => e.store_fill * 100), type: 'bar',
+    marker: {
+      color: D.expedite.map(e => e.days === days ? C.teal : C.grid),
+      cornerradius: 4,
+      line: { color: D.expedite.map(e => e.days === days ? C.teal : C.muted), width: 1 }
+    },
+    width: 0.5,
+    text: D.expedite.map(e => (e.store_fill * 100).toFixed(2) + '%'),
+    textposition: 'outside', textfont: { color: C.ink, size: 13 },
+    customdata: D.expedite.map(e => [e.cost, e.expedited]),
+    hovertemplate: '<b>%{x} emergency delivery</b><br>' +
+      '%{y:.2f}% of customer demand met on time<br>' +
+      'Stock held costs $%{customdata[0]:,.0f a year<br>' +
+      '%{customdata[1]:,.0f units moved as emergency deliveries<extra></extra>',
+    showlegend: false
+  }], L, CFG);
+}
+(function () {
+  const f = D.expedite.map(e => e.store_fill);
+  const c = D.expedite.map(e => e.cost);
+  const spreadF = (Math.max(...f) - Math.min(...f)) * 100;
+  const spreadC = (Math.max(...c) - Math.min(...c)) / Math.min(...c) * 100;
+  document.getElementById('expNote').innerHTML =
+    `<strong>This barely matters &mdash; and that is the interesting part.</strong>` +
+    ` Across the whole range from same-day to three-day emergency delivery, the` +
+    ` share of demand met on time moves by only` +
+    ` <strong>${spreadF.toFixed(2)} percentage points</strong> and the cost of stock` +
+    ` held by <strong>${spreadC.toFixed(1)}%</strong>. An earlier, purely theoretical` +
+    ` version of this calculation suggested the assumption was critical &mdash; it` +
+    ` implied the benefit of sharing stock would collapse from 22.8% to 2.2% across` +
+    ` this same range. Running the actual simulation showed that was an artefact of` +
+    ` the theory, not a real effect. The softest assumption in the model turned out` +
+    ` not to be load-bearing, which means the conclusions do not depend on getting` +
+    ` it right.`;
+})();
+document.getElementById('expSlider').addEventListener('input', e =>
+  drawExpedite(Number(e.target.value)));
+drawExpedite(1);
+
+/* ---------- 5. cost within one period ---------- */
+const ORDER = ['naive', 'decentralized_95', 'optimized'];
+function drawCost(win) {
+  const rows = ORDER.map(p => byWin[win][p]);
+  const max = Math.max(...rows.map(r => r.cost));
+  const L = LAYOUT();
+  L.title.text = 'Yearly Cost Of Stock Held — ' + rows[0].quarter +
+    ' (share of demand met shown on each bar)';
+  L.yaxis.title.text = 'Cost of stock held ($/year)';
+  L.yaxis.range = [0, max * 1.28]; L.yaxis.tickprefix = '$';
+  L.height = 430;
+  Plotly.newPlot('chartCost', rows.map((r, i) => ({
+    x: [D.policy_short[r.policy]], y: [r.cost], type: 'bar',
+    marker: { color: [C.rust, C.blue, C.teal][i], cornerradius: 4 },
+    width: 0.45, name: D.policy_label[r.policy],
+    text: [USD(r.cost) + '<br><span style="font-size:11px">' +
+      PCT1(r.store_fill) + ' of demand met</span>'],
+    textposition: 'outside', textfont: { color: C.ink, size: 13 },
+    hovertemplate: '<b>' + D.policy_label[r.policy] + '</b><br>' +
+      'Stock held costs ' + USD(r.cost) + ' a year<br>' +
+      'Met ' + PCT(r.store_fill) + ' of customer demand on time<br>' +
+      'Warehouses filled ' + PCT(r.dc_fill) + ' of store restock orders<br>' +
+      'Worst single store managed ' + PCT(r.worst_store) + '<extra></extra>',
+    showlegend: false
+  })), L, CFG);
+}
+(function () {
+  const sel = document.getElementById('qSelect');
+  sel.innerHTML = WINS.map(w =>
+    `<option value="${w}">${byWin[w].naive.quarter} (${byWin[w].naive.dates})</option>`
+  ).join('');
+  sel.value = WINS[WINS.length - 1];
+  sel.addEventListener('change', e => drawCost(e.target.value));
+  drawCost(sel.value);
+})();
+
+/* ---------- 6. service level by period ---------- */
+(function () {
+  const L = LAYOUT();
+  L.title.text = 'Share Of Customer Demand Met On Time, By Test Period';
+  L.yaxis.title.text = '% of demand met on time';
+  L.yaxis.range = [0, 105]; L.yaxis.ticksuffix = '%';
+  L.bargap = 0.35; L.bargroupgap = 0.08; L.height = 400;
+  L.shapes = [{ type: 'line', xref: 'paper', x0: 0, x1: 1, y0: 95, y1: 95,
+                line: { color: C.muted, width: 1.5, dash: 'dot' } }];
+  L.annotations = [{ xref: 'paper', x: 0.99, y: 95, yanchor: 'bottom',
+    showarrow: false, font: { color: C.muted, size: 11 }, text: '95% target' }];
+  const traces = ['naive', 'optimized'].map((p, i) => ({
+    x: QLAB, y: WINS.map(w => byWin[w][p].store_fill * 100), type: 'bar',
+    name: D.policy_label[p],
+    marker: { color: [C.rust, C.teal][i], cornerradius: 4 },
+    customdata: WINS.map(w => byWin[w][p].worst_store * 100),
+    hovertemplate: '<b>' + D.policy_short[p] + '</b> &middot; %{x}<br>' +
+      '%{y:.1f}% of all customer demand met on time<br>' +
+      'Worst single store managed %{customdata:.1f}%<extra></extra>'
+  }));
+  Plotly.newPlot('chartService', traces, L, CFG);
+})();
+
+/* ---------- tables ---------- */
+(function () {
+  const head = ['Test Period', 'Dates', 'Method', 'Demand vs Plan',
+    '% Of Demand Met', 'Worst Single Store', '% Of Store Orders Filled',
+    'Yearly Cost', 'Saved vs Own Stock'];
+  const rows = [];
+  WINS.forEach(w => ORDER.forEach(p => {
+    const r = byWin[w][p];
+    rows.push([r.quarter, r.dates, D.policy_label[p],
+      ((r.demand_ratio - 1) * 100).toFixed(1) + '%',
+      PCT(r.store_fill), PCT(r.worst_store), PCT(r.dc_fill), USD(r.cost),
+      p === 'optimized' ? PCT(D.saving[w]) : '—']);
+  }));
+  document.getElementById('mainTable').innerHTML =
+    '<thead><tr>' + head.map(h => `<th>${h}</th>`).join('') + '</tr></thead><tbody>' +
+    rows.map(r => '<tr>' + r.map(c => `<td>${c}</td>`).join('') + '</tr>').join('') +
+    '</tbody>';
+
+  const dh = ['Test Period', 'Method', 'Location', 'Type', 'Region',
+    '% Of Demand Met', '% Of Days With No Shortage', 'Avg Stock On Hand', 'Yearly Cost'];
+  document.getElementById('detailTable').innerHTML =
+    '<thead><tr>' + dh.map(h => `<th>${h}</th>`).join('') + '</tr></thead><tbody>' +
+    D.detail.map(r => '<tr>' + [r.window, r.policy, r.node_name, r.node_type,
+      r.region, PCT(r.fill_rate), PCT(r.day_service),
+      Math.round(r.mean_onhand).toLocaleString('en-US'),
+      USD(r.actual_cost_annual)].map(c => `<td>${c}</td>`).join('') + '</tr>').join('') +
+    '</tbody>';
+})();
+</script>
+</body>
+</html>

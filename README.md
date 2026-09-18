@@ -1,5 +1,11 @@
 # Multi-Echelon Inventory Optimization
 
+### ▶ **[Open the live dashboard](https://vishesh-ranka.github.io/scm-inventory-optimization/)**
+
+*Interactive, no install — charts, glossary and all three controls run in your browser.*
+
+---
+
 Deciding **where a retailer should keep its backup stock** — centrally in a few regional warehouses, or locally in each shop — and then testing that decision honestly, against periods the plan was never allowed to see.
 
 A simulated network with two stocking levels:
@@ -222,15 +228,16 @@ An **oracle** policy, fitted on the test period itself, is also simulated as a d
 ## Reproducing
 
 ```bash
-pip install numpy pandas pyarrow scipy pulp highspy streamlit plotly
+pip install -r requirements.txt
 
-python3 src/generate_demand.py       # 2 years of seeded synthetic demand
-python3 src/naive_baseline.py        # textbook baseline + assumption audit
-python3 src/optimize_network.py      # two-stage MILP
-python3 src/validate_policy.py       # single held-out simulation
-python3 src/rolling_validation.py    # 4 rolling backtests
+python3 src/generate_demand.py            # 2 years of seeded synthetic demand
+python3 src/naive_baseline.py             # textbook baseline + assumption audit
+python3 src/optimize_network.py           # two-stage MILP
+python3 src/validate_policy.py            # single held-out simulation
+python3 src/rolling_validation.py         # 4 rolling backtests
 
-streamlit run dashboard.py           # interactive dashboard
+streamlit run dashboard.py                # interactive dashboard (local)
+python3 src/build_static_dashboard.py     # rebuild docs/index.html (the hosted page)
 ```
 
 The whole pipeline runs in **under 10 seconds**. Demand generation is seeded, so every figure above reproduces exactly — two consecutive runs produce byte-identical Parquet output.
@@ -248,7 +255,21 @@ src/naive_baseline.py           textbook z·σ·√L policy + audit of its assum
 src/optimize_network.py         two-stage MILP (PuLP/HiGHS) over empirical pooling curves
 src/validate_policy.py          day-by-day simulation on one held-out period
 src/rolling_validation.py       4 expanding train/test windows; stability of the findings
-dashboard.py                    Streamlit dashboard
+src/build_static_dashboard.py   renders docs/index.html from the same Parquet files
+dashboard.py                    Streamlit dashboard (run locally)
+docs/index.html                 static build served by GitHub Pages - the live link
 .streamlit/config.toml          pinned light theme the dashboard depends on
 data/                           results at each stage (Parquet)
+requirements.txt                dependencies, split by what the dashboard alone needs
 ```
+
+### Two versions of the same dashboard
+
+`dashboard.py` (Streamlit) and `docs/index.html` (static) read the **same Parquet
+files**, so they cannot disagree. The static build exists because GitHub Pages
+serves files but cannot run Python — and it works here only because the dashboard
+does no computation at view time: every figure is precomputed by the pipeline, and
+the slider, quarter selector and Explained/Raw toggle merely select between values
+that already exist. All of that interactivity is preserved in the browser. What the
+static version cannot do is compute anything **new**; a control that changed a model
+input and re-ran the optimization would need the Streamlit version.
