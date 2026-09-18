@@ -1,0 +1,27 @@
+# Multi-Echelon Inventory Optimization - dependencies
+#
+# Install everything:   pip install -r requirements.txt
+# Verified on Python 3.14.5. Lower bounds are set to the versions this project
+# was developed and tested against; they are not known upper limits.
+
+# --- Needed by dashboard.py ------------------------------------------------
+streamlit>=1.63.0          # the dashboard itself
+plotly>=7.0.0              # all six charts
+pandas>=2.3.3              # reads the Parquet result files
+pyarrow>=25.0.1            # Parquet engine for pandas.read_parquet - the
+                           # dashboard will not load its data without it
+
+# --- Additionally needed to regenerate the data in src/ --------------------
+numpy>=2.4.6               # demand generation, all quantile/array work
+scipy>=1.18.1              # normal quantile for the textbook baseline formula
+pulp>=3.3.2                # MILP modelling layer in optimize_network.py
+highspy>=1.15.1            # HiGHS solver backend for PuLP.
+                           # NOT optional on Apple Silicon: PuLP's bundled CBC
+                           # binary is x86-64 and raises
+                           # "OSError: Bad CPU type in executable" on arm64.
+                           # optimize_network.py probes for a working solver and
+                           # prefers HiGHS, which ships native arm64 wheels.
+
+# Note: the dashboard reads the committed data/*.parquet files, so the four
+# packages in the first block are enough to run it from a fresh clone. The
+# second block is only required if you re-run the pipeline in src/.
