@@ -89,7 +89,7 @@ st.markdown(
          Belt and braces. `.streamlit/config.toml` pins the base theme to
          light, which is the real fix for the invisible-text problem. These
          rules repeat the intent at the CSS layer so the page still renders
-         correctly if that config is not picked up - running streamlit from a
+         correctly if that config is not picked up, for example when streamlit runs from a
          different working directory, or a host that supplies its own theme.
 
          The rule that matters: any surface that can inherit a dark background
@@ -139,7 +139,7 @@ st.markdown(
       /* The "off" (grey) delta inherits a very pale tone in dark base; pin it. */
       div[data-testid="stMetricDelta"] svg {{ vertical-align: middle; }}
 
-      /* Expanders - header bar is the classic dark-on-dark offender ---- */
+      /* Expanders: header bar is the classic dark-on-dark offender ----- */
       div[data-testid="stExpander"] {{
         border: 1px solid {GRID}; border-radius: 6px; background-color: {CARD};
       }}
@@ -172,7 +172,7 @@ st.markdown(
       }}
       /* Dropdown menus render in a portal at the end of <body>, outside the
          app container, so they never inherit the rules above. Without this the
-         open menu is a dark panel with dark text - unreadable. */
+         open menu is a dark panel with dark text, unreadable. */
       div[data-baseweb="popover"], div[data-baseweb="menu"],
       ul[data-baseweb="menu"], div[data-baseweb="popover"] * {{
         background-color: {PLOT_BG} !important; color: {INK} !important;
@@ -286,8 +286,8 @@ def pretty_span(span: str) -> str:
     start_txt = f"{start:%b} {start.day}"
     end_txt = f"{end:%b} {end.day}"
     if start.year == end.year:
-        return f"{start_txt} – {end_txt}, {end.year}"
-    return f"{start_txt}, {start.year} – {end_txt}, {end.year}"
+        return f"{start_txt} to {end_txt}, {end.year}"
+    return f"{start_txt}, {start.year} to {end_txt}, {end.year}"
 
 
 def style_fig(fig: go.Figure, height: int = 400) -> go.Figure:
@@ -385,7 +385,7 @@ c2.metric(
 )
 c3.metric(
     "Money Saved (Range)",
-    f"{saving_pct.min():.1%}–{saving_pct.max():.1%}",
+    f"{saving_pct.min():.1%} to {saving_pct.max():.1%}",
     f"average {saving_pct.mean():.1%}",
     delta_color="off",
 )
@@ -485,7 +485,7 @@ st.markdown(
     comes first because it was consistent in all four test periods. The money saved
     comes second and is shown as a range, because it was always positive but its size
     changed a lot depending on how busy the period was. Dollar costs appear last and
-    only one period at a time - comparing them across periods is genuinely misleading,
+    only one period at a time, because comparing them across periods is genuinely misleading,
     for a reason explained in that section.
     </div>
     """,
@@ -560,8 +560,8 @@ st.markdown(
     <p class='caption'>
     The new method keeps every regional warehouse able to fill <strong>100%</strong>
     of store restock orders in all four test periods. The textbook method looks
-    perfectly healthy when trade is calm - it also hits 100% in Q2 2024, the one
-    quarter where demand came in <em>below</em> what it had planned for - but falls to
+    perfectly healthy when trade is calm. It also hits 100% in Q2 2024, the one
+    quarter where demand came in <em>below</em> what it had planned for, but falls to
     <strong>{wide_dc['naive'].min():.1%}</strong> in Q4 2024, the Christmas peak.
     That is the whole point: it fails exactly when it is needed most, and looks fine
     the rest of the year.
@@ -693,7 +693,7 @@ st.markdown(
     f"""
     <p class='caption'>
     The statistical summary of that pattern is a correlation of
-    <strong>{corr:+.2f}</strong> - which in plain terms means:
+    <strong>{corr:+.2f}</strong>, which in plain terms means:
     <strong>as demand rises above what the plan plans for, the textbook method's
     warehouse reliability drops, consistently and steeply.</strong> A correlation of
     −1.00 would be a perfect straight-line relationship, so −0.90 is a strong one.
@@ -704,11 +704,11 @@ st.markdown(
     <strong>Why it happens.</strong> The textbook method sizes each warehouse's backup
     stock with a standard formula that assumes each day's demand is unrelated to the
     last. Real demand is not like that: it has a weekly rhythm, a Christmas season,
-    and a growth trend, so busy days arrive in clusters. Across a 30–45 day sea
+    and a growth trend, so busy days arrive in clusters. Across a 30 to 45 day sea
     crossing those clusters pile up, and the true swing in demand turns out to be
     between <strong>2.8× and 10.6×</strong> larger than the formula assumes. The
     formula therefore buys a backup stock sized for a calm world. The new method sizes
-    the same backup stock from what demand actually did over that same 30–45 day
+    the same backup stock from what demand actually did over that same 30 to 45 day
     window, so the clustering is already accounted for.
     </p>
     """,
@@ -786,7 +786,7 @@ st.markdown(
     ranged from <strong>{saving_pct.min():.1%}</strong> to
     <strong>{saving_pct.max():.1%}</strong>, averaging
     <strong>{saving_pct.mean():.1%}</strong>. An earlier version of this analysis, based
-    on a single test period, reported 2.7% - which turned out to be one draw from a
+    on a single test period, reported 2.7%, which turned out to be one draw from a
     wide spread rather than a dependable figure. Quote the range, not a single number.
     The saving is biggest in the busiest periods, because that is when being able to
     send stock wherever the shortage actually is beats having it pre-committed to ten
@@ -846,7 +846,7 @@ e1.metric(
     "% Of Demand Met On Time",
     f"{row.store_fill:.2%}",
     # At 1 day the comparison is against itself, so it would always read
-    # "+0.00%" - an arrow pointing at nothing. Say so instead.
+    # "+0.00%", an arrow pointing at nothing. Say so instead.
     "the assumption used elsewhere on this page" if is_baseline
     else f"{row.store_fill - base.store_fill:+.2%} vs a 1-day assumption",
     delta_color="off" if is_baseline else "normal",
@@ -922,7 +922,7 @@ spread_cost = (expedite.cost.max() - expedite.cost.min()) / expedite.cost.min()
 st.markdown(
     f"""
     <div class='note'>
-    <strong>This barely matters - and that is the interesting part.</strong> Across the
+    <strong>This barely matters, and that is the interesting part.</strong> Across the
     whole range from same-day to three-day emergency delivery, the share of demand met
     on time moves by only <strong>{spread_fill:.2f} percentage points</strong> and the
     cost of stock held by <strong>{spread_cost:.1%}</strong>. An earlier, purely
@@ -961,12 +961,12 @@ st.markdown(
     <div class='callout'>
     <strong>⚠ Please read this before reading the chart.</strong> The cost figure here
     is the value of stock actually sitting on shelves. That means <em>a lower number
-    can signal a failing policy rather than an efficient one</em> - when demand
+    can signal a failing policy rather than an efficient one</em>. When demand
     outstrips supply the shelves empty, and empty shelves are cheap to hold.
     <br><br>
     This data contains a clear example. In <strong>Q4 2024 the textbook method
     produced the lowest cost figure in the entire study,
-    ${wide_cost.loc['W4', 'naive']:,.0f} a year - while meeting only
+    ${wide_cost.loc['W4', 'naive']:,.0f} a year, while meeting only
     {summary[(summary.window == 'W4') & (summary.policy == 'naive')].store_fill.iloc[0]:.1%}
     of customer demand</strong> and leaving its warehouses able to fill just
     {wide_dc.loc['W4', 'naive']:.1%} of store restock orders. That is not a cheap
@@ -974,7 +974,7 @@ st.markdown(
     <br><br>
     For the same reason this chart shows <strong>one period at a time</strong>. The
     identical shared-warehouse method costs ${wide_cost['optimized'].max():,.0f} a year
-    in the quietest period and ${wide_cost['optimized'].min():,.0f} in the busiest - a
+    in the quietest period and ${wide_cost['optimized'].min():,.0f} in the busiest, a
     threefold difference that reflects how busy trade was, not how good the policy is.
     Comparing dollar figures between periods tells you nothing useful, so the page
     does not let you do it.
@@ -1024,7 +1024,7 @@ for policy in ["naive", "decentralized_95", "optimized"]:
     )
 cost_fig.update_layout(
     title=(
-        f"Yearly Cost Of Stock Held - {quarters[window_choice]} "
+        f"Yearly Cost Of Stock Held in {quarters[window_choice]} "
         f"(share of demand met shown on each bar)"
     ),
     yaxis_title="Cost of stock held ($/year)",

@@ -80,8 +80,8 @@ def pretty_span(span: str) -> str:
     a, b = span.split(" -> ")
     s, e = pd.Timestamp(a), pd.Timestamp(b)
     if s.year == e.year:
-        return f"{s:%b} {s.day} – {e:%b} {e.day}, {e.year}"
-    return f"{s:%b} {s.day}, {s.year} – {e:%b} {e.day}, {e.year}"
+        return f"{s:%b} {s.day} to {e:%b} {e.day}, {e.year}"
+    return f"{s:%b} {s.day}, {s.year} to {e:%b} {e.day}, {e.year}"
 
 
 def build_payload() -> dict:
@@ -919,7 +919,7 @@ function drawCost(win) {
   const rows = ORDER.map(p => byWin[win][p]);
   const max = Math.max(...rows.map(r => r.cost));
   const L = LAYOUT();
-  L.title.text = 'Yearly Cost Of Stock Held - ' + rows[0].quarter +
+  L.title.text = 'Yearly Cost Of Stock Held in ' + rows[0].quarter +
     ' (share of demand met shown on each bar)';
   L.yaxis.title.text = 'Cost of stock held ($/year)';
   L.yaxis.range = [0, max * 1.28]; L.yaxis.tickprefix = '$';
