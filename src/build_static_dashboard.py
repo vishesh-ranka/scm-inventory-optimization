@@ -4,7 +4,7 @@ Build a self-contained static version of the dashboard for GitHub Pages.
 Run:
     python3 src/build_static_dashboard.py
 
-Writes `docs/index.html` - one file, no server, no Python at view time.
+Writes `docs/index.html`: one file, no server, no Python at view time.
 
 WHY A STATIC BUILD IS POSSIBLE HERE
 -----------------------------------
@@ -12,7 +12,7 @@ WHY A STATIC BUILD IS POSSIBLE HERE
 already precomputed in `data/*.parquet` by the pipeline; the slider, the quarter
 selector and the raw/explained toggle only SELECT between values that already
 exist. So the whole page can be rendered client-side with the data baked in,
-which is what lets GitHub Pages host it - Pages serves static files only and
+which is what lets GitHub Pages host it. Pages serves static files only and
 cannot run a Python server.
 
 The Streamlit app in `dashboard.py` remains the local/interactive version. This
@@ -66,7 +66,7 @@ POLICY_SHORT = {
 
 
 # ---------------------------------------------------------------------------
-# Data assembly - mirrors the loaders in dashboard.py
+# Data assembly, mirroring the loaders in dashboard.py
 # ---------------------------------------------------------------------------
 
 
@@ -76,7 +76,7 @@ def quarter_label(span: str) -> str:
 
 
 def pretty_span(span: str) -> str:
-    """'2024-01-01 -> 2024-03-31' -> 'Jan 1 - Mar 31, 2024'."""
+    """'2024-01-01 -> 2024-03-31' -> 'Jan 1, Mar 31, 2024'."""
     a, b = span.split(" -> ")
     s, e = pd.Timestamp(a), pd.Timestamp(b)
     if s.year == e.year:
@@ -108,7 +108,7 @@ def build_payload() -> dict:
         )
     summary = pd.DataFrame(rows)
 
-    # Expedite sensitivity - the SIMULATED figures, not the analytical ones.
+    # Expedite sensitivity: the SIMULATED figures, not the analytical ones.
     val = pd.read_parquet(DATA / "validation_results.parquet")
     expedite = []
     for days in (0, 1, 2, 3):
@@ -176,8 +176,8 @@ GLOSSARY = [
      "planning both levels together instead of separately."),
     ("Lead time",
      "How long you wait for a delivery after ordering it. Factory to warehouse "
-     "is 30–45 days (a ship crossing an ocean, plus customs). Warehouse to "
-     "store is 2–5 days (a truck)."),
+     "is 30 to 45 days (a ship crossing an ocean, plus customs). Warehouse to "
+     "store is 2 to 5 days (a truck)."),
     ("Safety stock (backup stock)",
      "Extra inventory kept on hand beyond what you normally expect to sell, so "
      "that an unusually busy week doesn’t empty the shelves. Deciding how "
@@ -369,7 +369,7 @@ __ROOTVARS__
   <p class="caption">Every technical term used anywhere on this page is defined
   below. Nothing further down assumes you have read a supply-chain textbook.</p>
   <details open>
-    <summary>Glossary - Plain-Language Definitions</summary>
+    <summary>Glossary, Plain-Language Definitions</summary>
     __GLOSSARY__
   </details>
   <div class="note">
@@ -378,7 +378,7 @@ __ROOTVARS__
     reliability comes first because it was consistent in all four test periods.
     The money saved comes second and is shown as a range, because it was always
     positive but its size changed a lot depending on how busy the period was.
-    Dollar costs appear last and only one period at a time - comparing them
+    Dollar costs appear last and only one period at a time, comparing them
     across periods is genuinely misleading, for a reason explained in that section.
   </div>
 
@@ -387,7 +387,7 @@ __ROOTVARS__
     <strong>What this shows:</strong> for each three-month test period, how much
     of what stores asked their regional warehouse for was actually shipped.
     <strong>What to look for:</strong> the green dots stay pinned at 100% every
-    time, while the orange dots slip - and slip furthest in Q4, the busiest
+    time, while the orange dots slip, and slip furthest in Q4, the busiest
     quarter.
   </div>
   <div class="chart"><div id="chartDC"></div></div>
@@ -423,7 +423,7 @@ __ROOTVARS__
     Left-to-right is how much busier (or quieter) that period turned out to be
     than the history the plan was built from. Up-and-down is how well the
     textbook method&rsquo;s warehouses coped.
-    <strong>What to look for:</strong> the dots fall as you move right - the
+    <strong>What to look for:</strong> the dots fall as you move right, the
     busier it got, the worse the warehouses performed.
   </div>
   <div class="chart"><div id="chartScatter"></div></div>
@@ -433,16 +433,16 @@ __ROOTVARS__
     warehouse&rsquo;s backup stock with a standard formula that assumes each
     day&rsquo;s demand is unrelated to the last. Real demand is not like that: it
     has a weekly rhythm, a Christmas season, and a growth trend, so busy days
-    arrive in clusters. Across a 30&ndash;45 day sea crossing those clusters pile
+    arrive in clusters. Across a 30to45 day sea crossing those clusters pile
     up, and the true swing in demand turns out to be between
     <strong>2.8&times; and 10.6&times;</strong> larger than the formula assumes.
     The formula therefore buys a backup stock sized for a calm world. The new
     method sizes the same backup stock from what demand actually did over that
-    same 30&ndash;45 day window, so the clustering is already accounted for.
+    same 30to45 day window, so the clustering is already accounted for.
   </p>
   <details><summary>Why does this matter?</summary>
     <p>This is a warning about how inventory plans are usually reviewed. The
-    textbook formula is not broken in an obvious way - it is the standard
+    textbook formula is not broken in an obvious way, it is the standard
     approach taught everywhere, and it performs perfectly well for most of the
     year. Its weakness only appears under demand pressure, which is the one
     condition where being wrong is expensive.</p>
@@ -457,8 +457,8 @@ __ROOTVARS__
   <div class="chartnote">
     <strong>What this shows:</strong> how much cheaper the shared-warehouse
     method was than giving every store its own independent backup stock, in each
-    test period. <strong>What to look for:</strong> every bar is above zero
-    - it saved money every time - but the bars are very different
+    test period. <strong>What to look for:</strong> every bar is above zero,
+    it saved money every time, but the bars are very different
     heights, so the size of the saving is not something you can promise in
     advance.
   </div>
@@ -482,7 +482,7 @@ __ROOTVARS__
     The shared-warehouse method assumes a regional warehouse can rush an
     emergency delivery to a nearby store quickly. The faster that is, the less
     backup stock each store has to hold itself. This was the single softest
-    assumption in the whole model - so it was tested directly. Move the
+    assumption in the whole model, so it was tested directly. Move the
     slider to see what the simulation actually produced at each speed.
   </p>
   <div class="controls">
@@ -510,7 +510,7 @@ __ROOTVARS__
     it removes an obvious line of objection from anyone reviewing the proposal.</p>
   </details>
 
-  <h2>Cost In Dollars - One Period At A Time</h2>
+  <h2>Cost In Dollars, One Period At A Time</h2>
   <div class="callout" id="costWarning"></div>
   <div class="controls">
     <label for="qSelect">Test period</label>
@@ -521,7 +521,7 @@ __ROOTVARS__
     the three methods, within the single period you selected. The share of
     customer demand each one met is printed on its bar.
     <strong>What to look for:</strong> read the cost and the demand-met figure
-    together - never the cost on its own.
+    together, never the cost on its own.
   </div>
   <div class="chart"><div id="chartCost"></div></div>
   <details><summary>Why does this matter?</summary>
@@ -543,8 +543,8 @@ __ROOTVARS__
     are close for most of the year, then separate in Q4.
   </div>
   <div class="chart"><div id="chartService"></div></div>
-  <p class="caption">These bars start at zero, so the differences look modest
-  - and they genuinely are modest in ordinary quarters. The gap opens up in
+  <p class="caption">These bars start at zero, so the differences look modest,
+  and they genuinely are modest in ordinary quarters. The gap opens up in
   Q4. The larger operational difference between the two methods is in the
   warehouses, shown at the top of this page.</p>
 
@@ -552,7 +552,7 @@ __ROOTVARS__
   <div class="chartnote">
     <strong>What this shows:</strong> every figure behind the charts above, one
     row per method per test period. <strong>What to look for:</strong> the
-    &ldquo;Demand vs Plan&rdquo; column explains most of the variation - the
+    &ldquo;Demand vs Plan&rdquo; column explains most of the variation, the
     higher it is, the worse every method performs.
   </div>
   <div class="tablewrap"><table id="mainTable"></table></div>
@@ -567,26 +567,26 @@ __ROOTVARS__
     <summary>Method And Known Limitations</summary>
     <p><strong>The test.</strong> Four separate tests were run. Each one builds
     the stocking plan using only the history up to a cut-off date, then simulates
-    the following three months day by day - stores selling, ordering from
+    the following three months day by day, stores selling, ordering from
     their warehouse, warehouses ordering from the factory, deliveries arriving
     after realistic delays. Demand the shops could not supply is treated as a
     lost sale, not a delayed one, which is how retail actually works. The
     simulation runs for two months before measurement starts, so it is not being
     judged on its opening conditions.</p>
     <p><strong>Why the standard formula was replaced.</strong> The textbook
-    approach understates how much demand really swings over a 30&ndash;45 day sea
-    crossing - by between 2.8&times; and 10.6&times; at the warehouses
-    - because it assumes each day is unrelated to the one before. Every
+    approach understates how much demand really swings over a 30to45 day sea
+    crossing, by between 2.8&times; and 10.6&times; at the warehouses,
+    because it assumes each day is unrelated to the one before. Every
     backup stock figure here is instead taken from what demand actually did over
     windows of that same length in the real history.</p>
     <p><strong>Where the saving comes from.</strong> The stores do not all get
-    busy at the same time - Sydney peaks mid-year while Tokyo and Jakarta
+    busy at the same time, Sydney peaks mid-year while Tokyo and Jakarta
     peak in December. That means one shared pile of backup stock at the warehouse
-    only needs 65&ndash;75% of what ten separate piles would. This was measured by
+    only needs 65to75% of what ten separate piles would. This was measured by
     adding up genuine simultaneous shortfalls in the history, not assumed.</p>
     <p><strong>What this cannot tell you.</strong></p>
     <ul>
-      <li>The demand history is synthetic - generated data, not a real
+      <li>The demand history is synthetic, generated data, not a real
       retailer&rsquo;s sales. The structure of the findings is sound, but the
       specific dollar figures describe this simulated network only.</li>
       <li>Only four test periods, drawn from two years of history. The ranges
@@ -594,7 +594,7 @@ __ROOTVARS__
       <li>The planner chooses one stocking level per region rather than per
       individual store, a simplification made so the shared buffer could be
       calculated.</li>
-      <li>Emergency delivery speed is assumed rather than measured - though
+      <li>Emergency delivery speed is assumed rather than measured, though
       as the interactive section above shows, the results barely move across the
       plausible range.</li>
       <li>Every result assumes the factory itself never runs short.</li>
@@ -606,7 +606,7 @@ __ROOTVARS__
     13 locations. Generated by <code>src/rolling_validation.py</code>, with the
     emergency-delivery comparison from <code>src/validate_policy.py</code>.
     This page is a static build of the Streamlit dashboard
-    (<code>dashboard.py</code>) - same data, no server required.
+    (<code>dashboard.py</code>), same data, no server required.
     &nbsp;&middot;&nbsp;
     <a href="https://github.com/vishesh-ranka/scm-inventory-optimization">Source
     code on GitHub</a>
@@ -653,10 +653,10 @@ const CFG = { displayModeBar: false, responsive: true };
   const sav = WINS.map(w => D.saving[w]);
   const mean = sav.reduce((a, b) => a + b, 0) / sav.length;
   const cards = [
-    ['Warehouse Reliability - New Method', '100%', 'held in all 4 test periods', false],
-    ['Warehouse Reliability - Textbook Method', PCT1(worst),
+    ['Warehouse Reliability, New Method', '100%', 'held in all 4 test periods', false],
+    ['Warehouse Reliability, Textbook Method', PCT1(worst),
      PCT1(worst - 1) + ' at its worst', true],
-    ['Money Saved (Range)', PCT1(Math.min(...sav)) + '&ndash;' + PCT1(Math.max(...sav)),
+    ['Money Saved (Range)', PCT1(Math.min(...sav)) + 'to' + PCT1(Math.max(...sav)),
      'average ' + PCT1(mean), false],
     ['Test Periods Run', String(WINS.length), '3 months each', false]
   ];
@@ -668,7 +668,7 @@ const CFG = { displayModeBar: false, responsive: true };
   document.getElementById('dcCaption').innerHTML =
     `The new method keeps every regional warehouse able to fill <strong>100%</strong>` +
     ` of store restock orders in all four test periods. The textbook method looks` +
-    ` perfectly healthy when trade is calm - it also hits 100% in Q2 2024, the` +
+    ` perfectly healthy when trade is calm. It also hits 100% in Q2 2024, the` +
     ` one quarter where demand came in <em>below</em> what it had planned for -` +
     ` but falls to <strong>${PCT1(worst)}</strong> in Q4 2024, the Christmas peak.` +
     ` That is the whole point: it fails exactly when it is needed most, and looks` +
@@ -680,14 +680,14 @@ const CFG = { displayModeBar: false, responsive: true };
     ` it ranged from <strong>${PCT1(Math.min(...sav))}</strong> to` +
     ` <strong>${PCT1(Math.max(...sav))}</strong>, averaging` +
     ` <strong>${PCT1(mean)}</strong>. An earlier version of this analysis, based on` +
-    ` a single test period, reported 2.7% - which turned out to be one draw` +
+    ` a single test period, reported 2.7%, which turned out to be one draw` +
     ` from a wide spread rather than a dependable figure. Quote the range, not a` +
     ` single number.`;
 
   const c = D.corr;
   document.getElementById('corrCaption').innerHTML =
     `The statistical summary of that pattern is a correlation of` +
-    ` <strong>${c.toFixed(2)}</strong> - which in plain terms means:` +
+    ` <strong>${c.toFixed(2)}</strong>, which in plain terms means:` +
     ` <strong>as demand rises above what the plan plans for, the textbook` +
     ` method&rsquo;s warehouse reliability drops, consistently and steeply.</strong>` +
     ` A correlation of &minus;1.00 would be a perfect straight-line relationship, so` +
@@ -700,16 +700,16 @@ const CFG = { displayModeBar: false, responsive: true };
     `<strong>&#9888; Please read this before reading the chart.</strong> The cost` +
     ` figure here is the value of stock actually sitting on shelves. That means` +
     ` <em>a lower number can signal a failing policy rather than an efficient` +
-    ` one</em> - when demand outstrips supply the shelves empty, and empty` +
+    ` one</em>. When demand outstrips supply the shelves empty, and empty` +
     ` shelves are cheap to hold.<br><br>This data contains a clear example. In` +
     ` <strong>${w4.quarter} the textbook method produced the lowest cost figure in` +
-    ` the entire study, ${USD(w4.cost)} a year - while meeting only` +
+    ` the entire study, ${USD(w4.cost)} a year, while meeting only` +
     ` ${PCT1(w4.store_fill)} of customer demand</strong> and leaving its warehouses` +
     ` able to fill just ${PCT1(w4.dc_fill)} of store restock orders. That is not a` +
     ` cheap policy; it is an out-of-stock one.<br><br>For the same reason this chart` +
     ` shows <strong>one period at a time</strong>. The identical shared-warehouse` +
     ` method costs ${USD(Math.max(...oc))} a year in the quietest period and` +
-    ` ${USD(Math.min(...oc))} in the busiest - a threefold difference that` +
+    ` ${USD(Math.min(...oc))} in the busiest, a threefold difference that` +
     ` reflects how busy trade was, not how good the policy is.`;
 })();
 
@@ -836,7 +836,7 @@ drawScatter('explained');
     textfont: { color: C.ink, size: 13 },
     customdata: abs,
     hovertemplate: '<b>%{x}</b><br>Sharing backup stock centrally cost ' +
-      '%{y:.1f}% less<br>than giving every store its own - about ' +
+      '%{y:.1f}% less<br>than giving every store its own, about ' +
       '$%{customdata:,.0f} a year<extra></extra>',
     showlegend: false
   }], L, CFG);
@@ -897,12 +897,12 @@ function drawExpedite(days) {
   const spreadF = (Math.max(...f) - Math.min(...f)) * 100;
   const spreadC = (Math.max(...c) - Math.min(...c)) / Math.min(...c) * 100;
   document.getElementById('expNote').innerHTML =
-    `<strong>This barely matters - and that is the interesting part.</strong>` +
+    `<strong>This barely matters, and that is the interesting part.</strong>` +
     ` Across the whole range from same-day to three-day emergency delivery, the` +
     ` share of demand met on time moves by only` +
     ` <strong>${spreadF.toFixed(2)} percentage points</strong> and the cost of stock` +
     ` held by <strong>${spreadC.toFixed(1)}%</strong>. An earlier, purely theoretical` +
-    ` version of this calculation suggested the assumption was critical - it` +
+    ` version of this calculation suggested the assumption was critical, it` +
     ` implied the benefit of sharing stock would collapse from 22.8% to 2.2% across` +
     ` this same range. Running the actual simulation showed that was an artefact of` +
     ` the theory, not a real effect. The softest assumption in the model turned out` +
