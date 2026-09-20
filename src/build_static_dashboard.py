@@ -31,6 +31,8 @@ from pathlib import Path
 
 import pandas as pd
 
+from network_config import DISTRIBUTION_CENTERS, STORES, stores_for_dc
+
 PROJECT_ROOT = Path(__file__).resolve().parent.parent
 DATA = PROJECT_ROOT / "data"
 OUT = PROJECT_ROOT / "docs" / "index.html"
@@ -234,9 +236,164 @@ def glossary_html() -> str:
     return f"<dl class='glossary'>{items}</dl>"
 
 
-def build_html(payload: dict) -> str:
-    data_json = json.dumps(payload, separators=(",", ":"))
-    g = glossary_html()
+# ---------------------------------------------------------------------------
+# Network diagram
+# ---------------------------------------------------------------------------
+#
+# Geometry is generated from network_config rather than hand placed, so the
+# picture cannot drift from the network the pipeline actually simulates. The
+# real split is 4 stores on DC-1 and 3 each on DC-2 and DC-3.
+#
+# The SVG is emitted as static markup, so it renders in full with JavaScript
+# disabled. The script only adds hover and focus highlighting on top.
+
+SVG_W, SVG_H = 680, 360
+X_SUP, X_DC, X_STORE = 61, 300, 580
+STORE_Y0, STORE_STEP = 28, 32
+
+
+def _network_layout():
+    """Positions plus the label and tooltip text for every node."""
+    store_list = list(STORES.values())
+    dc_ids = list(DISTRIBUTION_CENTERS)
+
+    stores = {}
+    for i, st in enumerate(store_list):
+        stores[st.id] = {
+            "key": f"S{i + 1:02d}",
+            "y": STORE_Y0 + i * STORE_STEP,
+            "store": st,
+        }
+
+    dcs = {}
+    for i, dc_id in enumerate(dc_ids, start=1):
+        served = stores_for_dc(dc_id)
+        ys = [stores[s.id]["y"] for s in served]
+        dcs[dc_id] = {
+            "key": f"DC{i}",
+            "label": f"DC-{i} · R{i}",
+            "y": sum(ys) / len(ys),
+            "dc": DISTRIBUTION_CENTERS[dc_id],
+            "served": served,
+            "index": i,
+        }
+    return dcs, stores
+
+
+def network_svg() -> str:
+    dcs, stores = _network_layout()
+    y_sup = sum(d["y"] for d in dcs.values()) / len(dcs)
+    parts = []
+
+    lead_times = [d["dc"].lead_time_mean_days for d in dcs.values()]
+    store_leads = [s["store"].lead_time_mean_days for s in stores.values()]
+
+    # edges, drawn first so nodes sit on top
+    for d in dcs.values():
+        parts.append(
+            f'<path class="edge" data-edge="SUP|{d["key"]}" '
+            f'd="M74,{y_sup:.0f} H180 V{d["y"]:.0f} H288"/>'
+        )
+    for d in dcs.values():
+        mid = 424 if d["index"] != 2 else 448
+        for st in d["served"]:
+            s = stores[st.id]
+            parts.append(
+                f'<path class="edge" data-edge="{d["key"]}|{s["key"]}" '
+                f'd="M312,{d["y"]:.0f} H{mid} V{s["y"]} H571"/>'
+            )
+
+    # supplier
+    sup_meta = (
+        f"Overseas factory · feeds all {len(dcs)} regional warehouses · "
+        f"{min(lead_times):.0f} to {max(lead_times):.0f} day sea lead times "
+        f"including customs"
+    )
+    parts.append(
+        f'<g class="node supplier" data-node="SUP" tabindex="0" role="button" '
+        f'data-title="Supplier" data-meta="{sup_meta}">'
+        f'<rect class="shape" x="{X_SUP - 13}" y="{y_sup - 13:.0f}" width="26" height="26"/>'
+        f'<rect class="focus-ring" x="{X_SUP - 19}" y="{y_sup - 19:.0f}" '
+        f'width="38" height="38"/>'
+        f'<text class="label" x="{X_SUP}" y="{y_sup + 31:.0f}" '
+        f'text-anchor="middle">Supplier</text></g>'
+    )
+
+    # distribution centers
+    for d in dcs.values():
+        dc = d["dc"]
+        keys = ", ".join(stores[s.id]["key"] for s in d["served"])
+        meta = (
+            f"{dc.name} · {dc.region} · {dc.lead_time_mean_days:.0f} day lead time "
+            f"from the factory · serves {len(d['served'])} stores ({keys}) · "
+            f"holding cost {dc.holding_cost_per_unit_per_day:.3f} per unit per day"
+        )
+        y = d["y"]
+        parts.append(
+            f'<g class="node dc" data-node="{d["key"]}" tabindex="0" role="button" '
+            f'data-title="{d["label"]}" data-meta="{meta}">'
+            f'<rect class="shape" x="{X_DC - 12}" y="{y - 12:.0f}" width="24" height="24" '
+            f'transform="rotate(45 {X_DC} {y:.0f})"/>'
+            f'<rect class="focus-ring" x="{X_DC - 19}" y="{y - 19:.0f}" '
+            f'width="38" height="38"/>'
+            f'<text class="label" x="{X_DC}" y="{y + 38:.0f}" '
+            f'text-anchor="middle">{d["label"]}</text></g>'
+        )
+
+    # stores
+    for d in dcs.values():
+        for st in d["served"]:
+            s = stores[st.id]
+            meta = (
+                f"{st.name} · {st.region} · replenished from {d['label']} · "
+                f"{st.lead_time_mean_days:.0f} day delivery · 95% service target"
+            )
+            parts.append(
+                f'<g class="node store" data-node="{s["key"]}" tabindex="0" '
+                f'role="button" data-title="Store {s["key"]}" data-meta="{meta}">'
+                f'<circle class="shape" cx="{X_STORE}" cy="{s["y"]}" r="8"/>'
+                f'<circle class="focus-ring" cx="{X_STORE}" cy="{s["y"]}" r="14"/>'
+                f'<text class="label" x="{X_STORE + 16}" y="{s["y"] + 4}">'
+                f'{s["key"]}</text></g>'
+            )
+
+    aria = (
+        "Interactive diagram of the supply network: one overseas factory feeding "
+        "three regional warehouses, which between them serve ten stores."
+    )
+    return (
+        f'<svg class="diagram" id="net" viewBox="0 0 {SVG_W} {SVG_H}" '
+        f'role="group" aria-label="{aria}">' + "".join(parts) + "</svg>"
+    )
+
+
+def network_sr_text() -> str:
+    """Text equivalent of the diagram, for screen readers and for no JavaScript."""
+    dcs, stores = _network_layout()
+    lead_times = [d["dc"].lead_time_mean_days for d in dcs.values()]
+    store_leads = [s["store"].lead_time_mean_days for s in stores.values()]
+
+    bits = [
+        "Network structure in text: a single overseas factory feeds three "
+        "regional warehouses."
+    ]
+    for d in dcs.values():
+        keys = [stores[s.id]["key"] for s in d["served"]]
+        listed = ", ".join(keys[:-1]) + " and " + keys[-1]
+        bits.append(
+            f"{d['label']}, the {d['dc'].name} in {d['dc'].region}, sits "
+            f"{d['dc'].lead_time_mean_days:.0f} days from the factory and serves "
+            f"{len(keys)} stores: {listed}."
+        )
+    bits.append(
+        f"Factory to warehouse lead times run {min(lead_times):.0f} to "
+        f"{max(lead_times):.0f} days by sea including customs. Warehouse to store "
+        f"deliveries take {min(store_leads):.0f} to {max(store_leads):.0f} days by "
+        f"road. Every store is held to a 95% service target."
+    )
+    return " ".join(bits)
+
+
 TEMPLATE = r"""<!doctype html>
 <html lang="en">
 <head>
@@ -344,6 +501,43 @@ __ROOTVARS__
   code { background: var(--card); color: var(--terra); padding: 1px 5px;
           border-radius: 3px; font-size: .9em; }
   a { color: var(--terra); }
+  /* Network diagram ------------------------------------------------- */
+  .diagram-block { border: 1px solid var(--grid); border-radius: 8px;
+                   background: var(--plot); margin: 12px 0 8px; }
+  .diagram-cap { display: flex; flex-wrap: wrap; gap: 6px 22px;
+                 padding: 11px 15px; border-bottom: 1px solid var(--grid);
+                 color: var(--muted); font-size: .88rem; }
+  .diagram-cap b { color: var(--ink); font-weight: 700; }
+  .diagram-wrap { position: relative; padding: 16px 12px; }
+  .diagram { display: block; width: 100%; height: auto; touch-action: pan-y; }
+  .edge { fill: none; stroke: rgba(107,97,85,.34); stroke-width: 1.2;
+          transition: stroke .18s ease, stroke-width .18s ease, opacity .18s ease; }
+  .node { cursor: pointer; }
+  .node .shape { fill: var(--plot); stroke: var(--ink); stroke-width: 1.3;
+                 transition: fill .18s ease, stroke .18s ease; }
+  .node .label { font-size: 10px; fill: var(--muted); transition: fill .18s ease; }
+  .node.supplier .shape { fill: var(--terra); stroke: var(--terra); }
+  .node:hover .shape, .node:focus-visible .shape { fill: var(--teal); stroke: var(--teal); }
+  .focus-ring { fill: none; stroke: transparent; opacity: 0; }
+  .node:focus-visible .focus-ring { stroke: var(--terra); stroke-width: 1.5; opacity: 1; }
+  .node:focus { outline: none; }
+  .diagram.is-active .edge { opacity: .2; }
+  .diagram.is-active .node { opacity: .32; }
+  .diagram.is-active .edge.hl { opacity: 1; stroke: var(--teal); stroke-width: 2.1; }
+  .diagram.is-active .node.hl { opacity: 1; }
+  .diagram.is-active .node.hl .shape { fill: var(--teal); stroke: var(--teal); }
+  .diagram.is-active .node.hl.supplier .shape { fill: var(--terra); stroke: var(--terra); }
+  .diagram.is-active .node.hl .label { fill: var(--ink); }
+  .tip { position: absolute; z-index: 5; pointer-events: none; opacity: 0;
+         transform: translate(-50%, -112%); background: var(--ink); color: #fff;
+         padding: 9px 12px; max-width: 280px; border-radius: 5px;
+         font-size: .78rem; line-height: 1.5; transition: opacity .14s ease; }
+  .tip.show { opacity: 1; }
+  .tip b { display: block; font-weight: 700; color: #fff; margin-bottom: 3px; }
+  .tip span { color: rgba(255,255,255,.8); }
+  .sr-only { position: absolute; width: 1px; height: 1px; padding: 0; margin: -1px;
+             overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; border: 0; }
+
   @media (max-width: 640px) {
     h1 { font-size: 1.5rem; } body { font-size: 15px; }
     .controls { flex-direction: column; align-items: flex-start; }
@@ -381,6 +575,50 @@ __ROOTVARS__
     Dollar costs appear last and only one period at a time, comparing them
     across periods is genuinely misleading, for a reason explained in that section.
   </div>
+
+  <h2>How The Network Is Put Together</h2>
+  <p class="caption">
+    Two levels hold stock: three regional warehouses, and the ten stores they
+    supply. Everything starts at a single overseas factory. The shape matters
+    because the two legs of the journey are wildly different lengths: a month or
+    more by sea to reach a warehouse, then a couple of days by road to reach a
+    shop. That mismatch is what the rest of this page is about.
+  </p>
+
+  <div class="diagram-block">
+    <div class="diagram-cap">
+      <span><b>Network structure:</b> 1 factory to 3 regional warehouses to 10 stores</span>
+      <span>Hover or tab to a node to see its connections</span>
+    </div>
+    <div class="diagram-wrap">
+      __NETWORK_SVG__
+      <div class="tip" id="tip" role="status" aria-live="polite"></div>
+    </div>
+  </div>
+
+  <p class="sr-only">__NETWORK_SR__</p>
+  <noscript>
+    <div class="note">__NETWORK_SR__</div>
+  </noscript>
+
+  <p class="caption">
+    Note that this is a simple tree: every store is supplied by exactly one
+    warehouse, so there is a single path from the factory to any shop. That is
+    what makes the pooling question tractable here, and it is a different shape
+    from a hierarchy where product and geography cross one another.
+  </p>
+
+  <details><summary>Why does this matter?</summary>
+    <p>Where a network branches is where the money and the risk sit. A warehouse
+    that serves four stores is carrying risk for all four at once, so getting its
+    stock level wrong has four times the blast radius of getting one shop wrong.
+    That is the argument for planning the levels together rather than one at a
+    time.</p>
+    <p>The long sea leg is the other half of the picture. An order placed today
+    for a warehouse arrives more than a month from now, against a forecast made
+    today. The shops, by contrast, can be corrected within days. Most of the
+    difficulty in this project comes from that asymmetry.</p>
+  </details>
 
   <h2>Main Finding: Keeping Regional Warehouses In Stock</h2>
   <div class="chartnote">
@@ -972,6 +1210,76 @@ function drawCost(win) {
   Plotly.newPlot('chartService', traces, L, CFG);
 })();
 
+/* ---------- network diagram ---------- */
+(function () {
+  var svg = document.getElementById('net');
+  var tip = document.getElementById('tip');
+  if (!svg || !tip) return;              // page still fine without the diagram
+
+  var wrap = svg.parentNode;
+  var nodes = Array.prototype.slice.call(svg.querySelectorAll('.node'));
+  var edges = Array.prototype.slice.call(svg.querySelectorAll('.edge'));
+
+  function clear() {
+    svg.classList.remove('is-active');
+    nodes.forEach(function (n) { n.classList.remove('hl'); });
+    edges.forEach(function (e) { e.classList.remove('hl'); });
+    tip.classList.remove('show');
+    tip.textContent = '';
+  }
+
+  function highlight(node) {
+    var id = node.getAttribute('data-node');
+    var related = {};
+    related[id] = true;
+
+    edges.forEach(function (edge) {
+      var pair = edge.getAttribute('data-edge').split('|');
+      if (pair[0] === id || pair[1] === id) {
+        edge.classList.add('hl');
+        related[pair[0]] = true;
+        related[pair[1]] = true;
+      } else {
+        edge.classList.remove('hl');
+      }
+    });
+
+    nodes.forEach(function (n) {
+      n.classList.toggle('hl', !!related[n.getAttribute('data-node')]);
+    });
+    svg.classList.add('is-active');
+
+    tip.innerHTML = '<b></b><span></span>';
+    tip.querySelector('b').textContent = node.getAttribute('data-title');
+    tip.querySelector('span').textContent = node.getAttribute('data-meta');
+
+    var box = node.getBoundingClientRect();
+    var host = wrap.getBoundingClientRect();
+    var x = box.left - host.left + box.width / 2;
+    var y = box.top - host.top;
+
+    tip.style.left = '0px';
+    tip.style.top = '0px';
+    tip.classList.add('show');
+
+    var tw = tip.offsetWidth;
+    var pad = 8;
+    x = Math.max(tw / 2 + pad, Math.min(x, host.width - tw / 2 - pad));
+    tip.style.left = x + 'px';
+    tip.style.top = y + 'px';
+  }
+
+  nodes.forEach(function (node) {
+    node.addEventListener('mouseenter', function () { highlight(node); });
+    node.addEventListener('focus', function () { highlight(node); });
+    node.addEventListener('blur', clear);
+    node.addEventListener('keydown', function (e) {
+      if (e.key === 'Escape') { clear(); node.blur(); }
+    });
+  });
+  svg.addEventListener('mouseleave', clear);
+})();
+
 /* ---------- tables ---------- */
 (function () {
   const head = ['Test Period', 'Dates', 'Method', 'Demand vs Plan',
@@ -1022,6 +1330,8 @@ def build_html(payload: dict) -> str:
         .replace("__ROOTVARS__", root_vars)
         .replace("__PLOTLY_VERSION__", PLOTLY_VERSION)
         .replace("__GLOSSARY__", glossary_html())
+        .replace("__NETWORK_SVG__", network_svg())
+        .replace("__NETWORK_SR__", network_sr_text())
         .replace("__DATA__", json.dumps(payload, separators=(",", ":")))
     )
 

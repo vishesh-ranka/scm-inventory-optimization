@@ -114,6 +114,43 @@ Validated with rolling-window backtests on a simulated 13-location network.">
   code { background: var(--card); color: var(--terra); padding: 1px 5px;
           border-radius: 3px; font-size: .9em; }
   a { color: var(--terra); }
+  /* Network diagram ------------------------------------------------- */
+  .diagram-block { border: 1px solid var(--grid); border-radius: 8px;
+                   background: var(--plot); margin: 12px 0 8px; }
+  .diagram-cap { display: flex; flex-wrap: wrap; gap: 6px 22px;
+                 padding: 11px 15px; border-bottom: 1px solid var(--grid);
+                 color: var(--muted); font-size: .88rem; }
+  .diagram-cap b { color: var(--ink); font-weight: 700; }
+  .diagram-wrap { position: relative; padding: 16px 12px; }
+  .diagram { display: block; width: 100%; height: auto; touch-action: pan-y; }
+  .edge { fill: none; stroke: rgba(107,97,85,.34); stroke-width: 1.2;
+          transition: stroke .18s ease, stroke-width .18s ease, opacity .18s ease; }
+  .node { cursor: pointer; }
+  .node .shape { fill: var(--plot); stroke: var(--ink); stroke-width: 1.3;
+                 transition: fill .18s ease, stroke .18s ease; }
+  .node .label { font-size: 10px; fill: var(--muted); transition: fill .18s ease; }
+  .node.supplier .shape { fill: var(--terra); stroke: var(--terra); }
+  .node:hover .shape, .node:focus-visible .shape { fill: var(--teal); stroke: var(--teal); }
+  .focus-ring { fill: none; stroke: transparent; opacity: 0; }
+  .node:focus-visible .focus-ring { stroke: var(--terra); stroke-width: 1.5; opacity: 1; }
+  .node:focus { outline: none; }
+  .diagram.is-active .edge { opacity: .2; }
+  .diagram.is-active .node { opacity: .32; }
+  .diagram.is-active .edge.hl { opacity: 1; stroke: var(--teal); stroke-width: 2.1; }
+  .diagram.is-active .node.hl { opacity: 1; }
+  .diagram.is-active .node.hl .shape { fill: var(--teal); stroke: var(--teal); }
+  .diagram.is-active .node.hl.supplier .shape { fill: var(--terra); stroke: var(--terra); }
+  .diagram.is-active .node.hl .label { fill: var(--ink); }
+  .tip { position: absolute; z-index: 5; pointer-events: none; opacity: 0;
+         transform: translate(-50%, -112%); background: var(--ink); color: #fff;
+         padding: 9px 12px; max-width: 280px; border-radius: 5px;
+         font-size: .78rem; line-height: 1.5; transition: opacity .14s ease; }
+  .tip.show { opacity: 1; }
+  .tip b { display: block; font-weight: 700; color: #fff; margin-bottom: 3px; }
+  .tip span { color: rgba(255,255,255,.8); }
+  .sr-only { position: absolute; width: 1px; height: 1px; padding: 0; margin: -1px;
+             overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; border: 0; }
+
   @media (max-width: 640px) {
     h1 { font-size: 1.5rem; } body { font-size: 15px; }
     .controls { flex-direction: column; align-items: flex-start; }
@@ -151,6 +188,50 @@ Validated with rolling-window backtests on a simulated 13-location network.">
     Dollar costs appear last and only one period at a time, comparing them
     across periods is genuinely misleading, for a reason explained in that section.
   </div>
+
+  <h2>How The Network Is Put Together</h2>
+  <p class="caption">
+    Two levels hold stock: three regional warehouses, and the ten stores they
+    supply. Everything starts at a single overseas factory. The shape matters
+    because the two legs of the journey are wildly different lengths: a month or
+    more by sea to reach a warehouse, then a couple of days by road to reach a
+    shop. That mismatch is what the rest of this page is about.
+  </p>
+
+  <div class="diagram-block">
+    <div class="diagram-cap">
+      <span><b>Network structure:</b> 1 factory to 3 regional warehouses to 10 stores</span>
+      <span>Hover or tab to a node to see its connections</span>
+    </div>
+    <div class="diagram-wrap">
+      <svg class="diagram" id="net" viewBox="0 0 680 360" role="group" aria-label="Interactive diagram of the supply network: one overseas factory feeding three regional warehouses, which between them serve ten stores."><path class="edge" data-edge="SUP|DC1" d="M74,183 H180 V76 H288"/><path class="edge" data-edge="SUP|DC2" d="M74,183 H180 V188 H288"/><path class="edge" data-edge="SUP|DC3" d="M74,183 H180 V284 H288"/><path class="edge" data-edge="DC1|S01" d="M312,76 H424 V28 H571"/><path class="edge" data-edge="DC1|S02" d="M312,76 H424 V60 H571"/><path class="edge" data-edge="DC1|S03" d="M312,76 H424 V92 H571"/><path class="edge" data-edge="DC1|S04" d="M312,76 H424 V124 H571"/><path class="edge" data-edge="DC2|S05" d="M312,188 H448 V156 H571"/><path class="edge" data-edge="DC2|S06" d="M312,188 H448 V188 H571"/><path class="edge" data-edge="DC2|S07" d="M312,188 H448 V220 H571"/><path class="edge" data-edge="DC3|S08" d="M312,284 H424 V252 H571"/><path class="edge" data-edge="DC3|S09" d="M312,284 H424 V284 H571"/><path class="edge" data-edge="DC3|S10" d="M312,284 H424 V316 H571"/><g class="node supplier" data-node="SUP" tabindex="0" role="button" data-title="Supplier" data-meta="Overseas factory · feeds all 3 regional warehouses · 30 to 45 day sea lead times including customs"><rect class="shape" x="48" y="170" width="26" height="26"/><rect class="focus-ring" x="42" y="164" width="38" height="38"/><text class="label" x="61" y="214" text-anchor="middle">Supplier</text></g><g class="node dc" data-node="DC1" tabindex="0" role="button" data-title="DC-1 · R1" data-meta="Los Angeles DC · North America · 35 day lead time from the factory · serves 4 stores (S01, S02, S03, S04) · holding cost 0.030 per unit per day"><rect class="shape" x="288" y="64" width="24" height="24" transform="rotate(45 300 76)"/><rect class="focus-ring" x="281" y="57" width="38" height="38"/><text class="label" x="300" y="114" text-anchor="middle">DC-1 · R1</text></g><g class="node dc" data-node="DC2" tabindex="0" role="button" data-title="DC-2 · R2" data-meta="Rotterdam DC · Europe · 45 day lead time from the factory · serves 3 stores (S05, S06, S07) · holding cost 0.045 per unit per day"><rect class="shape" x="288" y="176" width="24" height="24" transform="rotate(45 300 188)"/><rect class="focus-ring" x="281" y="169" width="38" height="38"/><text class="label" x="300" y="226" text-anchor="middle">DC-2 · R2</text></g><g class="node dc" data-node="DC3" tabindex="0" role="button" data-title="DC-3 · R3" data-meta="Singapore DC · Asia-Pacific · 30 day lead time from the factory · serves 3 stores (S08, S09, S10) · holding cost 0.018 per unit per day"><rect class="shape" x="288" y="272" width="24" height="24" transform="rotate(45 300 284)"/><rect class="focus-ring" x="281" y="265" width="38" height="38"/><text class="label" x="300" y="322" text-anchor="middle">DC-3 · R3</text></g><g class="node store" data-node="S01" tabindex="0" role="button" data-title="Store S01" data-meta="New York Flagship · North America · replenished from DC-1 · R1 · 4 day delivery · 95% service target"><circle class="shape" cx="580" cy="28" r="8"/><circle class="focus-ring" cx="580" cy="28" r="14"/><text class="label" x="596" y="32">S01</text></g><g class="node store" data-node="S02" tabindex="0" role="button" data-title="Store S02" data-meta="Chicago Metro · North America · replenished from DC-1 · R1 · 4 day delivery · 95% service target"><circle class="shape" cx="580" cy="60" r="8"/><circle class="focus-ring" cx="580" cy="60" r="14"/><text class="label" x="596" y="64">S02</text></g><g class="node store" data-node="S03" tabindex="0" role="button" data-title="Store S03" data-meta="Denver Suburban · North America · replenished from DC-1 · R1 · 3 day delivery · 95% service target"><circle class="shape" cx="580" cy="92" r="8"/><circle class="focus-ring" cx="580" cy="92" r="14"/><text class="label" x="596" y="96">S03</text></g><g class="node store" data-node="S04" tabindex="0" role="button" data-title="Store S04" data-meta="Phoenix Outlet · North America · replenished from DC-1 · R1 · 2 day delivery · 95% service target"><circle class="shape" cx="580" cy="124" r="8"/><circle class="focus-ring" cx="580" cy="124" r="14"/><text class="label" x="596" y="128">S04</text></g><g class="node store" data-node="S05" tabindex="0" role="button" data-title="Store S05" data-meta="London Flagship · Europe · replenished from DC-2 · R2 · 3 day delivery · 95% service target"><circle class="shape" cx="580" cy="156" r="8"/><circle class="focus-ring" cx="580" cy="156" r="14"/><text class="label" x="596" y="160">S05</text></g><g class="node store" data-node="S06" tabindex="0" role="button" data-title="Store S06" data-meta="Berlin City · Europe · replenished from DC-2 · R2 · 4 day delivery · 95% service target"><circle class="shape" cx="580" cy="188" r="8"/><circle class="focus-ring" cx="580" cy="188" r="14"/><text class="label" x="596" y="192">S06</text></g><g class="node store" data-node="S07" tabindex="0" role="button" data-title="Store S07" data-meta="Milan Boutique · Europe · replenished from DC-2 · R2 · 5 day delivery · 95% service target"><circle class="shape" cx="580" cy="220" r="8"/><circle class="focus-ring" cx="580" cy="220" r="14"/><text class="label" x="596" y="224">S07</text></g><g class="node store" data-node="S08" tabindex="0" role="button" data-title="Store S08" data-meta="Tokyo Flagship · Asia-Pacific · replenished from DC-3 · R3 · 2 day delivery · 95% service target"><circle class="shape" cx="580" cy="252" r="8"/><circle class="focus-ring" cx="580" cy="252" r="14"/><text class="label" x="596" y="256">S08</text></g><g class="node store" data-node="S09" tabindex="0" role="button" data-title="Store S09" data-meta="Sydney Harbour · Asia-Pacific · replenished from DC-3 · R3 · 5 day delivery · 95% service target"><circle class="shape" cx="580" cy="284" r="8"/><circle class="focus-ring" cx="580" cy="284" r="14"/><text class="label" x="596" y="288">S09</text></g><g class="node store" data-node="S10" tabindex="0" role="button" data-title="Store S10" data-meta="Jakarta Mall · Asia-Pacific · replenished from DC-3 · R3 · 4 day delivery · 95% service target"><circle class="shape" cx="580" cy="316" r="8"/><circle class="focus-ring" cx="580" cy="316" r="14"/><text class="label" x="596" y="320">S10</text></g></svg>
+      <div class="tip" id="tip" role="status" aria-live="polite"></div>
+    </div>
+  </div>
+
+  <p class="sr-only">Network structure in text: a single overseas factory feeds three regional warehouses. DC-1 · R1, the Los Angeles DC in North America, sits 35 days from the factory and serves 4 stores: S01, S02, S03 and S04. DC-2 · R2, the Rotterdam DC in Europe, sits 45 days from the factory and serves 3 stores: S05, S06 and S07. DC-3 · R3, the Singapore DC in Asia-Pacific, sits 30 days from the factory and serves 3 stores: S08, S09 and S10. Factory to warehouse lead times run 30 to 45 days by sea including customs. Warehouse to store deliveries take 2 to 5 days by road. Every store is held to a 95% service target.</p>
+  <noscript>
+    <div class="note">Network structure in text: a single overseas factory feeds three regional warehouses. DC-1 · R1, the Los Angeles DC in North America, sits 35 days from the factory and serves 4 stores: S01, S02, S03 and S04. DC-2 · R2, the Rotterdam DC in Europe, sits 45 days from the factory and serves 3 stores: S05, S06 and S07. DC-3 · R3, the Singapore DC in Asia-Pacific, sits 30 days from the factory and serves 3 stores: S08, S09 and S10. Factory to warehouse lead times run 30 to 45 days by sea including customs. Warehouse to store deliveries take 2 to 5 days by road. Every store is held to a 95% service target.</div>
+  </noscript>
+
+  <p class="caption">
+    Note that this is a simple tree: every store is supplied by exactly one
+    warehouse, so there is a single path from the factory to any shop. That is
+    what makes the pooling question tractable here, and it is a different shape
+    from a hierarchy where product and geography cross one another.
+  </p>
+
+  <details><summary>Why does this matter?</summary>
+    <p>Where a network branches is where the money and the risk sit. A warehouse
+    that serves four stores is carrying risk for all four at once, so getting its
+    stock level wrong has four times the blast radius of getting one shop wrong.
+    That is the argument for planning the levels together rather than one at a
+    time.</p>
+    <p>The long sea leg is the other half of the picture. An order placed today
+    for a warehouse arrives more than a month from now, against a forecast made
+    today. The shops, by contrast, can be corrected within days. Most of the
+    difficulty in this project comes from that asymmetry.</p>
+  </details>
 
   <h2>Main Finding: Keeping Regional Warehouses In Stock</h2>
   <div class="chartnote">
@@ -740,6 +821,76 @@ function drawCost(win) {
       'Worst single store managed %{customdata:.1f}%<extra></extra>'
   }));
   Plotly.newPlot('chartService', traces, L, CFG);
+})();
+
+/* ---------- network diagram ---------- */
+(function () {
+  var svg = document.getElementById('net');
+  var tip = document.getElementById('tip');
+  if (!svg || !tip) return;              // page still fine without the diagram
+
+  var wrap = svg.parentNode;
+  var nodes = Array.prototype.slice.call(svg.querySelectorAll('.node'));
+  var edges = Array.prototype.slice.call(svg.querySelectorAll('.edge'));
+
+  function clear() {
+    svg.classList.remove('is-active');
+    nodes.forEach(function (n) { n.classList.remove('hl'); });
+    edges.forEach(function (e) { e.classList.remove('hl'); });
+    tip.classList.remove('show');
+    tip.textContent = '';
+  }
+
+  function highlight(node) {
+    var id = node.getAttribute('data-node');
+    var related = {};
+    related[id] = true;
+
+    edges.forEach(function (edge) {
+      var pair = edge.getAttribute('data-edge').split('|');
+      if (pair[0] === id || pair[1] === id) {
+        edge.classList.add('hl');
+        related[pair[0]] = true;
+        related[pair[1]] = true;
+      } else {
+        edge.classList.remove('hl');
+      }
+    });
+
+    nodes.forEach(function (n) {
+      n.classList.toggle('hl', !!related[n.getAttribute('data-node')]);
+    });
+    svg.classList.add('is-active');
+
+    tip.innerHTML = '<b></b><span></span>';
+    tip.querySelector('b').textContent = node.getAttribute('data-title');
+    tip.querySelector('span').textContent = node.getAttribute('data-meta');
+
+    var box = node.getBoundingClientRect();
+    var host = wrap.getBoundingClientRect();
+    var x = box.left - host.left + box.width / 2;
+    var y = box.top - host.top;
+
+    tip.style.left = '0px';
+    tip.style.top = '0px';
+    tip.classList.add('show');
+
+    var tw = tip.offsetWidth;
+    var pad = 8;
+    x = Math.max(tw / 2 + pad, Math.min(x, host.width - tw / 2 - pad));
+    tip.style.left = x + 'px';
+    tip.style.top = y + 'px';
+  }
+
+  nodes.forEach(function (node) {
+    node.addEventListener('mouseenter', function () { highlight(node); });
+    node.addEventListener('focus', function () { highlight(node); });
+    node.addEventListener('blur', clear);
+    node.addEventListener('keydown', function (e) {
+      if (e.key === 'Escape') { clear(); node.blur(); }
+    });
+  });
+  svg.addEventListener('mouseleave', clear);
 })();
 
 /* ---------- tables ---------- */
